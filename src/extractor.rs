@@ -3,7 +3,7 @@ use std::io::Write;
 use clio::{ClioPath, Output};
 use ironworks::{excel::{Excel, Field, Language}, file::exh::ColumnKind, sqpack::{Install, Resource, SqPack}, Ironworks};
 use ironworks_schema::{saint_coinach::Provider, Node, Schema};
-use crate::{err::Err, sheets::SHEET_COLUMNS};
+use crate::{err::{Err, ToUnknownErr}, sheets::{SheetLinkTarget, SHEET_COLUMNS}};
 
 pub fn extract(mut output: &mut Output, sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>) -> Result<(), Err> {
     let game_resource = if let Some(game_dir) = game_dir {
@@ -19,37 +19,84 @@ pub fn extract(mut output: &mut Output, sheet_name: &'static str, id: u32, game_
 
     let ironworks = Ironworks::new().with_resource(SqPack::new(game_resource));
     let excel = Excel::with().language(Language::English).build(&ironworks);
-    let provider = Provider::new().unwrap();
-    let version = provider.version("HEAD").unwrap();
-    let schema = version.sheet(sheet_name).unwrap();
+    let values = get_values(excel, sheet_name, id)?;
+
+    write!(&mut output, "{{").to_unknown_err()?;
+    let len = values.len();
+
+    for (i, column) in values.into_iter().enumerate() {
+        write!(&mut output, "\"{}\":", &column.key).to_unknown_err()?;
+        write_value(&mut output, column.value, column.kind);
+
+        if i < len - 1 {
+            write!(&mut output, ",").to_unknown_err()?;
+        }
+    }
+    write!(&mut output, "}}\n").to_unknown_err()?;
+
+    Ok(())
+}
+
+struct KeyValue {
+    key: String,
+    value: Field,
+    kind: ColumnKind
+}
+
+fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec<KeyValue>, Err> {
+    let provider = Provider::new().to_unknown_err()?;
+    let version = provider.version("HEAD").to_unknown_err()?;
+    let schema = version.sheet(sheet_name).to_unknown_err()?;
     let sheet = excel.sheet(sheet_name).map_err(|_| Err::SheetNotFound(sheet_name))?;
-    let row = sheet.row(id).map_err(|_| Err::RowNotFound(sheet_name, id))?;
-    let column_definitions = sheet.columns().unwrap();
-    let accepted_columns = SHEET_COLUMNS.get(sheet_name);
+    let row = sheet.row(row_id).map_err(|_| Err::RowNotFound(sheet_name, row_id))?;
+    let column_defs = sheet.columns().to_unknown_err()?;
+    let sheet_data = SHEET_COLUMNS.get(sheet_name);
 
     if let Node::Struct(columns) = schema.node {
-        write!(&mut output, "{{").unwrap();
-        let filtered_columns: Vec<_> = columns.iter()
-            .filter(|column| if let Some(accepted_columns) = accepted_columns { accepted_columns.contains(&column.name.as_ref()) } else { true })
-            .collect();
-        let len = filtered_columns.len();
-        for (i, column) in filtered_columns.iter().enumerate() {
+        let fallible_result: Result<Vec<KeyValue>, Err> = columns.iter()
+        .filter(|column| if let Some(data) = sheet_data { data.columns.contains(&column.name.as_ref()) } else { true })
+        .map(|column| {
             let index = column.offset as usize;
-            let definition = column_definitions.get(index).unwrap();
-            let kind = definition.kind();
-            write!(&mut output, "\"{}\":", &column.name).unwrap();
-            write_value(&mut output, row.field(index).unwrap(), kind);
+            let definition = column_defs.get(index).to_unknown_err()?;
+            Ok(KeyValue { key: column.name.clone(), value: row.field(index).to_unknown_err()?, kind: definition.kind() })
+        })
+        .collect();
+        let mut result: Vec<KeyValue> = fallible_result?;
+    
+        if let Some(data) = sheet_data {
+            for link in data.links {
+                let linked_sheet = excel.sheet(link.sheet).map_err(|_| Err::SheetNotFound(link.sheet))?;
+                let linked_row_id = if let SheetLinkTarget::Field(column_name) = link.target {
+                    let column = columns.iter().find(|x| x.name == column_name).ok_or(Err::ColumnNotFound(sheet_name, column_name))?;
+                    let index = column.offset as usize;
+                    let definition = column_defs.get(index).to_unknown_err()?;
+                    get_u32(row.field(index).to_unknown_err()?, definition.kind()).ok_or(Err::NoIndex(sheet_name, column_name))?
+                } else {
+                    row_id
+                };
 
-            if i < len - 1 {
-                write!(&mut output, ",").unwrap();
+                let linked_row = linked_sheet.row(linked_row_id).map_err(|_| Err::RowNotFound(link.sheet, linked_row_id))?;
+                let linked_schema = version.sheet(link.sheet).to_unknown_err()?;
+                let linked_columns = if let Node::Struct(columns) = linked_schema.node { Ok(columns) } else { Err(Err::UnsupportedSheet(link.sheet)) }?;
+                let linked_defs = linked_sheet.columns().to_unknown_err()?;
+                let column_data = linked_columns.into_iter().filter_map(|column| {
+                    let link_data = link.columns.iter().find(|x| x.source == column.name)?;
+
+                    Some((link_data, column))
+                });
+
+                for (link_data, column) in column_data {
+                    let index = column.offset as usize;
+                    let definition = linked_defs.get(index).to_unknown_err()?;
+                    result.push(KeyValue { key: link_data.target.to_owned(), value: linked_row.field(index).to_unknown_err()?, kind: definition.kind() });
+                }
             }
         }
-        write!(&mut output, "}}\n").unwrap();
+    
+        Ok(result)
     } else {
         return Err(Err::UnsupportedSheet(sheet_name));
     }
-
-    Ok(())
 }
 
 fn write_value(mut w: impl std::io::Write, field: Field, kind: ColumnKind) {
@@ -74,4 +121,19 @@ fn write_value(mut w: impl std::io::Write, field: Field, kind: ColumnKind) {
         ColumnKind::PackedBool6 => write!(w, "{}", field.into_bool().unwrap()),
         ColumnKind::PackedBool7 => write!(w, "{}", field.into_bool().unwrap())
     }.unwrap()
+}
+
+fn get_u32(field: Field, kind: ColumnKind) -> Option<u32> {
+    match kind {
+        ColumnKind::Int8 => Some(field.into_i8().unwrap() as u32),
+        ColumnKind::UInt8 => Some(field.into_u8().unwrap() as u32),
+        ColumnKind::Int16 => Some(field.into_i16().unwrap() as u32),
+        ColumnKind::UInt16 => Some(field.into_u16().unwrap() as u32),
+        ColumnKind::Int32 => Some(field.into_i32().unwrap() as u32),
+        ColumnKind::UInt32 => Some(field.into_u32().unwrap() as u32),
+        ColumnKind::Float32 => Some(field.into_f32().unwrap() as u32),
+        ColumnKind::Int64 => Some(field.into_i64().unwrap() as u32),
+        ColumnKind::UInt64 => Some(field.into_u64().unwrap() as u32),
+        _ => None
+    }
 }

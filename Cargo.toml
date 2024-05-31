@@ -8,8 +8,10 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }
 clio = { version = "0.3.5", features = ["clap-parse"] }
-ironworks = { git = "https://github.com/ackwell/ironworks", features = ["excel", "sqpack"] }
+ironworks = { git = "https://github.com/ackwell/ironworks", features = ["excel", "sqpack", "tex"] }
 ironworks_schema = { git = "https://github.com/ackwell/ironworks", features = ["saint_coinach", "exdschema"] }
 phf = { version = "0.11", default-features = false, features = ["macros"] }
 strum = "0.26"
 strum_macros = "0.26"
+image = "0.25.1"
+texpresso = "2.0.1"

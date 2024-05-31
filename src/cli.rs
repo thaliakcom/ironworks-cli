@@ -26,12 +26,15 @@ pub enum Command {
     /// Retrieves information about a specific action.
     Action(CommandArgs),
     /// Retrieves information about a specific status effect.
-    Status(CommandArgs)
+    Status(CommandArgs),
+    /// Retrieves a specific icon.
+    #[clap(name = "icon")]
+    Icon(CommandArgs)
 }
 
 impl Command {
     pub fn id(&self) -> u32 {
-        let (Command::ContentFinderCondition(args) | Command::Action(args) | Command::Status(args)) = self;
+        let (Command::ContentFinderCondition(args) | Command::Action(args) | Command::Status(args) | Command::Icon(args)) = self;
         args.id
     }
 
