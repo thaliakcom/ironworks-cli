@@ -17,8 +17,12 @@ pub struct SheetLink {
 }
 
 pub struct SheetData {
+    /// Which columns to add to the output.
     pub columns: &'static [&'static str],
-    pub links: &'static [SheetLink]
+    /// Whether data from another sheet should be added to the output.
+    pub links: &'static [SheetLink],
+    /// Which columns to search in.
+    pub search_columns: &'static [&'static str]
 }
 
 pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
@@ -50,6 +54,9 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "Aspect",
             "IsPlayerAction"
         ],
+        search_columns: &[
+            "Name"
+        ],
         links: &[
             SheetLink {
                 target: SheetLinkTarget::ID,
@@ -72,6 +79,10 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "InflictedByActor",
             "IsPermanent"
         ],
+        search_columns: &[
+            "Name",
+            "Description"
+        ],
         links: &[]
     },
     "ContentFinderCondition" => SheetData {
@@ -89,6 +100,9 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "ContentType",
             "Image",
             "Icon"
+        ],
+        search_columns: &[
+            "Name"
         ],
         links: &[]
     }

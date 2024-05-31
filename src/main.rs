@@ -2,7 +2,7 @@ use std::process::ExitCode;
 use crate::err::Err;
 
 use clap::Parser;
-use cli::{Cli, Command, CommandArgs};
+use cli::{Cli, Command, CommandArgs, Id};
 
 mod cli;
 mod extractor;
@@ -24,8 +24,14 @@ fn main() -> ExitCode {
 
 fn process(mut cli: Cli) -> Result<(), Err> {
     if let Command::Icon(CommandArgs { id }) = cli.command {
-        icons::extract(&mut cli.file, id, &cli.game_dir)
+        match id {
+            Id::Name(_) => Err(Err::NoSearchForIcon),
+            Id::Index(id) => icons::extract(&mut cli.file, id, &cli.game_dir)
+        }
     } else {
-        extractor::extract(&mut cli.file, cli.command.sheet(), cli.command.id(), &cli.game_dir)
+        match cli.command.id() {
+            Id::Name(name) => extractor::search(cli.command.sheet(), &name, &cli.game_dir),
+            Id::Index(index) => extractor::extract(&mut cli.file, cli.command.sheet(), *index, &cli.game_dir),
+        }
     }
 }

@@ -1,7 +1,7 @@
-use std::io::Write;
+use std::io::{stdout, Write};
 
 use clio::{ClioPath, Output};
-use ironworks::{excel::{Excel, Field, Language}, file::exh::ColumnKind, sqpack::{Install, Resource, SqPack}, Ironworks};
+use ironworks::{excel::{Excel, Field, Language}, file::exh::ColumnKind, sestring::SeString, sqpack::{Install, Resource, SqPack}, Ironworks};
 use ironworks_schema::{saint_coinach::Provider, Node, Schema};
 use crate::{err::{Err, ToUnknownErr}, sheets::{SheetLinkTarget, SHEET_COLUMNS}};
 
@@ -21,18 +21,58 @@ pub fn extract(mut output: &mut Output, sheet_name: &'static str, id: u32, game_
     let excel = Excel::with().language(Language::English).build(&ironworks);
     let values = get_values(excel, sheet_name, id)?;
 
-    write!(&mut output, "{{").to_unknown_err()?;
-    let len = values.len();
+    write_values(&mut output, values)?;
 
-    for (i, column) in values.into_iter().enumerate() {
-        write!(&mut output, "\"{}\":", &column.key).to_unknown_err()?;
-        write_value(&mut output, column.value, column.kind);
+    Ok(())
+}
 
-        if i < len - 1 {
-            write!(&mut output, ",").to_unknown_err()?;
+pub fn search(sheet_name: &'static str, search_str: &str, game_dir: &Option<ClioPath>) -> Result<(), Err> {
+    let game_resource = if let Some(game_dir) = game_dir {
+        Some(Install::at(game_dir.path()))
+    } else {
+        Install::search()
+    }.ok_or(Err::GameNotFound)?;
+
+    // There's currently an error in ironworks where search() always returns
+    // Some(), even if no path was found. We do this check to ensure the path
+    // actually points to the game.
+    game_resource.version(0).map_err(|_| Err::GameNotFound)?;
+
+    let ironworks = Ironworks::new().with_resource(SqPack::new(game_resource));
+    let excel = Excel::with().language(Language::English).build(&ironworks);
+    let provider = Provider::new().to_unknown_err()?;
+    let version = provider.version("HEAD").to_unknown_err()?;
+    let schema = version.sheet(sheet_name).to_unknown_err()?;
+    let sheet = excel.sheet(sheet_name).map_err(|_| Err::SheetNotFound(sheet_name))?;
+    let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err()?;
+    let mut matches: Vec<(u32, SeString)> = Vec::new();
+
+    if let Node::Struct(columns) = schema.node {
+        let filtered_columns: Vec<_> = columns.iter().filter(|x| sheet_data.search_columns.contains(&x.name.as_ref())).collect();
+
+        for row in sheet.iter() {
+            for column in filtered_columns.iter() {
+                let index = column.offset as usize;
+                let sestring = row.field(index).to_unknown_err()?.into_string().to_unknown_err()?;
+
+                if sestring.to_string().contains(search_str) {
+                    matches.push((row.row_id(), sestring));
+                }
+            }
+        }
+    } else {
+        return Err(Err::UnsupportedSheet(sheet_name));
+    }
+
+    if matches.len() == 0 {
+        println!("No matches found");
+    } else {
+        println!("{} matches found:", matches.len());
+
+        for match_ in matches {
+            println!("  at {: >5}: {}", match_.0, match_.1);
         }
     }
-    write!(&mut output, "}}\n").to_unknown_err()?;
 
     Ok(())
 }
@@ -97,6 +137,23 @@ fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec
     } else {
         return Err(Err::UnsupportedSheet(sheet_name));
     }
+}
+
+fn write_values(mut output: impl std::io::Write, values: Vec<KeyValue>) -> Result<(), Err> {
+    write!(&mut output, "{{").to_unknown_err()?;
+    let len = values.len();
+
+    for (i, column) in values.into_iter().enumerate() {
+        write!(&mut output, "\"{}\":", &column.key).to_unknown_err()?;
+        write_value(&mut output, column.value, column.kind);
+
+        if i < len - 1 {
+            write!(&mut output, ",").to_unknown_err()?;
+        }
+    }
+    write!(&mut output, "}}\n").to_unknown_err()?;
+
+    Ok(())
 }
 
 fn write_value(mut w: impl std::io::Write, field: Field, kind: ColumnKind) {

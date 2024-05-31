@@ -10,6 +10,7 @@ pub enum Err {
     IconNotFound(String),
     UnsupportedIconFormat(u32, String),
     UnsupportedSheet(&'static str),
+    NoSearchForIcon,
     Unknown
 }
 
@@ -24,6 +25,7 @@ impl Display for Err {
             Self::IconNotFound(path) => writeln!(f, "No icon found at path \"{}\"", path),
             Self::UnsupportedIconFormat(format, path) => writeln!(f, "Unsupported icon format {} at \"{}\"", format, path),
             Self::UnsupportedSheet(sheet) => writeln!(f, "Unsupported sheet type {}", sheet),
+            Self::NoSearchForIcon => writeln!(f, "Using the search feature is only supported for excel sheet subcommands"),
             Self::Unknown => writeln!(f, "An unknown error occurred")
         }
     }
