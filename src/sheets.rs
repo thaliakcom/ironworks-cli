@@ -1,22 +1,35 @@
 use phf::phf_map;
 
-pub enum SheetLinkTarget {
+/// A source for a [`SheetLink`], i.e. the type of column in the source
+/// sheet that is used to join to another sheet.
+pub enum LinkSource {
+    /// The [`SheetLink`] links to another sheet directly by cross-referencing both IDs.
     ID,
+    /// The [`SheetLink`] links to another sheet by cross-referencing the column defined
+    /// by this variant in the source sheet with the ID of the target sheet.
     #[allow(dead_code)]
     Field(&'static str)
 }
 
+/// Represents which columns in the linked sheet are used.
 pub struct SheetLinkColumn {
+    /// The name of a column in the target sheet to print.
     pub source: &'static str,
+    /// What this field should be called in the output.
     pub target: &'static str
 }
 
+/// Represents a link to another sheet.
 pub struct SheetLink {
-    pub target: SheetLinkTarget,
+    /// The link source. Describes how the two sheets should be connected.
+    pub source: LinkSource,
+    /// The sheet to link to.
     pub sheet: &'static str,
+    /// Which columns in the linked sheet are used, and whether they should be aliased.
     pub columns: &'static [SheetLinkColumn]
 }
 
+/// Data for a sheet.
 pub struct SheetData {
     /// Which columns to add to the output.
     pub columns: &'static [&'static str],
@@ -60,7 +73,7 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
         ],
         links: &[
             SheetLink {
-                target: SheetLinkTarget::ID,
+                source: LinkSource::ID,
                 sheet: "ActionTransient",
                 columns: &[SheetLinkColumn { source: "Description", target: "Description" }]
             }

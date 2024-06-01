@@ -36,12 +36,14 @@ pub trait ToUnknownErr<T> {
 }
 
 impl <T, E> ToUnknownErr<T> for Result<T, E> {
+    /// Converts the [`Result<T, E>`] into a `Result<T, Err::Unknown>`.
     fn to_unknown_err(self) -> Result<T, Err> {
         self.map_err(|_| Err::Unknown)
     }
 }
 
 impl <T> ToUnknownErr<T> for Option<T> {
+    /// Converts the [`Option<T>`] into a `Result<T, Err::Unknown>`.
     fn to_unknown_err(self) -> Result<T, Err> {
         self.ok_or(Err::Unknown)
     }

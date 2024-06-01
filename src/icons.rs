@@ -6,6 +6,8 @@ use ironworks::{file::tex::{self, Format, Texture}, sqpack::{Install, Resource, 
 use crate::err::Err;
 use crate::err::ToUnknownErr;
 
+/// Extracts an icon from the game files by ID and prints
+/// it to [`stdout`] as a PNG.
 pub fn extract(id: u32, game_dir: &Option<ClioPath>) -> Result<(), Err> {
     let game_resource = if let Some(game_dir) = game_dir {
         Some(Install::at(game_dir.path()))
@@ -71,6 +73,7 @@ impl TextureDecompressor for Texture {
         let format = self.format();
     
         match format {
+            // Dxt1–3 (aka Bc1–3) are known image compression formats.
             Format::Dxt1 => texpresso::Format::Bc1.decompress(data, width, height, output),
             Format::Dxt3 => texpresso::Format::Bc3.decompress(data, width, height, output),
             Format::Dxt5 => texpresso::Format::Bc5.decompress(data, width, height, output),
@@ -104,6 +107,12 @@ impl TextureDecompressor for Texture {
                 }
             },
             Format::Rgba4 => {
+                // Image data is in R4G4B4A4 format (i.e. 4 bits per RGBA channel
+                // for a total of 16 bits per pixel).
+                // We iterate over each set of 2 array elements, combine those 2 array
+                // elements to get a u16 (one pixel), then extract the bits corresponding
+                // to each color channel accordingly and expand them into u8s.
+
                 let mut i = 0;
 
                 for chunk in data.chunks(2) {
@@ -117,6 +126,7 @@ impl TextureDecompressor for Texture {
                     i = i + 1;
                 }
             },
+            // Rgba8 is already in the right format, so we don't need to do anything.
             Format::Rgba8 => output.copy_from_slice(data),
             Format::Argb8 => {
                 // Input has the right size, but it's in the wrong order, so
@@ -139,22 +149,4 @@ impl TextureDecompressor for Texture {
 
         Ok(())
     }
-}
-
-#[cfg(debug_assertions)]
-#[allow(dead_code)]
-fn find_first_matching_texture(ironworks: &Ironworks, formats: &[Format]) {
-    for i in 27966..50000 {
-        let icon_path = get_icon_path(i);
-        let file = ironworks.file::<tex::Texture>(&icon_path);
-
-        if let Ok(file) = file {
-            if formats.contains(&file.format()) {
-                println!("Match found for {:#04x}: {}", file.format() as u32, icon_path);
-                return;
-            }
-        }
-    }
-
-    println!("No matches found.");
 }

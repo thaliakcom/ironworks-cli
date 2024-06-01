@@ -1,8 +1,10 @@
 use clio::ClioPath;
 use ironworks::{excel::{Excel, Field, Language}, file::exh::ColumnKind, sestring::SeString, sqpack::{Install, Resource, SqPack}, Ironworks};
 use ironworks_schema::{saint_coinach::Provider, Node, Schema};
-use crate::{err::{Err, ToUnknownErr}, sheets::{SheetLinkTarget, SHEET_COLUMNS}};
+use crate::{err::{Err, ToUnknownErr}, sheets::{LinkSource, SHEET_COLUMNS}};
 
+/// Extracts a single row from the given sheet and prints a
+/// JSON representation of the result to [`stdout`].
 pub fn extract(sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>) -> Result<(), Err> {
     let game_resource = if let Some(game_dir) = game_dir {
         Some(Install::at(game_dir.path()))
@@ -24,6 +26,11 @@ pub fn extract(sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>) -
     Ok(())
 }
 
+/// Searches for a given string in the given sheet and prints a list of all matching row IDs
+/// to [`stdout`].
+///
+/// Note that this function does not search through _all_ columns; instead
+/// only the columns specified in `sheets.rs` are searched.
 pub fn search(sheet_name: &'static str, search_str: &str, game_dir: &Option<ClioPath>) -> Result<(), Err> {
     let game_resource = if let Some(game_dir) = game_dir {
         Some(Install::at(game_dir.path()))
@@ -81,6 +88,11 @@ struct KeyValue {
     kind: ColumnKind
 }
 
+/// Gets a [`Vec`] of the field values and their field names
+/// from the given row in the given sheet.
+///
+/// Note that this function does not extract _all_ fields. Instead only
+/// the fields specified in `sheets.rs` are extracted.
 fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec<KeyValue>, Err> {
     let provider = Provider::new().to_unknown_err()?;
     let version = provider.version("HEAD").to_unknown_err()?;
@@ -104,7 +116,7 @@ fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec
         if let Some(data) = sheet_data {
             for link in data.links {
                 let linked_sheet = excel.sheet(link.sheet).map_err(|_| Err::SheetNotFound(link.sheet))?;
-                let linked_row_id = if let SheetLinkTarget::Field(column_name) = link.target {
+                let linked_row_id = if let LinkSource::Field(column_name) = link.source {
                     let column = columns.iter().find(|x| x.name == column_name).ok_or(Err::ColumnNotFound(sheet_name, column_name))?;
                     let index = column.offset as usize;
                     let definition = column_defs.get(index).to_unknown_err()?;
@@ -137,13 +149,14 @@ fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec
     }
 }
 
+/// Prints the list of named values to [`stdout`] in JSON format.
 fn print_values(values: Vec<KeyValue>) -> Result<(), Err> {
     print!("{{");
     let len = values.len();
 
     for (i, column) in values.into_iter().enumerate() {
         print!("\"{}\":", &column.key);
-        write_value(column.value, column.kind);
+        print_value(column.value, column.kind);
 
         if i < len - 1 {
             print!(",");
@@ -154,7 +167,8 @@ fn print_values(values: Vec<KeyValue>) -> Result<(), Err> {
     Ok(())
 }
 
-fn write_value(field: Field, kind: ColumnKind) {
+/// Prints the value contained in the field to [`stdout`].
+fn print_value(field: Field, kind: ColumnKind) {
     match kind {
         ColumnKind::String => print!("\"{}\"", field.into_string().unwrap()),
         ColumnKind::Bool => print!("{}", field.into_bool().unwrap()),
@@ -178,6 +192,7 @@ fn write_value(field: Field, kind: ColumnKind) {
     }
 }
 
+/// Attempts to convert the value contained in the field to [`u32`].
 fn get_u32(field: Field, kind: ColumnKind) -> Option<u32> {
     match kind {
         ColumnKind::Int8 => Some(field.into_i8().unwrap() as u32),
