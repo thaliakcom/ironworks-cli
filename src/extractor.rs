@@ -1,9 +1,9 @@
-use clio::{ClioPath, Output};
+use clio::ClioPath;
 use ironworks::{excel::{Excel, Field, Language}, file::exh::ColumnKind, sestring::SeString, sqpack::{Install, Resource, SqPack}, Ironworks};
 use ironworks_schema::{saint_coinach::Provider, Node, Schema};
 use crate::{err::{Err, ToUnknownErr}, sheets::{SheetLinkTarget, SHEET_COLUMNS}};
 
-pub fn extract(mut output: &mut Output, sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>) -> Result<(), Err> {
+pub fn extract(sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>) -> Result<(), Err> {
     let game_resource = if let Some(game_dir) = game_dir {
         Some(Install::at(game_dir.path()))
     } else {
@@ -19,7 +19,7 @@ pub fn extract(mut output: &mut Output, sheet_name: &'static str, id: u32, game_
     let excel = Excel::with().language(Language::English).build(&ironworks);
     let values = get_values(excel, sheet_name, id)?;
 
-    write_values(&mut output, values)?;
+    print_values(values)?;
 
     Ok(())
 }
@@ -137,45 +137,45 @@ fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec
     }
 }
 
-fn write_values(mut output: impl std::io::Write, values: Vec<KeyValue>) -> Result<(), Err> {
-    write!(&mut output, "{{").to_unknown_err()?;
+fn print_values(values: Vec<KeyValue>) -> Result<(), Err> {
+    print!("{{");
     let len = values.len();
 
     for (i, column) in values.into_iter().enumerate() {
-        write!(&mut output, "\"{}\":", &column.key).to_unknown_err()?;
-        write_value(&mut output, column.value, column.kind);
+        print!("\"{}\":", &column.key);
+        write_value(column.value, column.kind);
 
         if i < len - 1 {
-            write!(&mut output, ",").to_unknown_err()?;
+            print!(",");
         }
     }
-    write!(&mut output, "}}\n").to_unknown_err()?;
+    print!("}}\n");
 
     Ok(())
 }
 
-fn write_value(mut w: impl std::io::Write, field: Field, kind: ColumnKind) {
+fn write_value(field: Field, kind: ColumnKind) {
     match kind {
-        ColumnKind::String => write!(w, "\"{}\"", field.into_string().unwrap()),
-        ColumnKind::Bool => write!(w, "{}", field.into_bool().unwrap()),
-        ColumnKind::Int8 => write!(w, "{}", field.into_i8().unwrap()),
-        ColumnKind::UInt8 => write!(w, "{}", field.into_u8().unwrap()),
-        ColumnKind::Int16 => write!(w, "{}", field.into_i16().unwrap()),
-        ColumnKind::UInt16 => write!(w, "{}", field.into_u16().unwrap()),
-        ColumnKind::Int32 => write!(w, "{}", field.into_i32().unwrap()),
-        ColumnKind::UInt32 => write!(w, "{}", field.into_u32().unwrap()),
-        ColumnKind::Float32 => write!(w, "{}", field.into_f32().unwrap()),
-        ColumnKind::Int64 => write!(w, "{}", field.into_i64().unwrap()),
-        ColumnKind::UInt64 => write!(w, "{}", field.into_u64().unwrap()),
-        ColumnKind::PackedBool0 => write!(w, "{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool1 => write!(w, "{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool2 => write!(w, "{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool3 => write!(w, "{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool4 => write!(w, "{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool5 => write!(w, "{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool6 => write!(w, "{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool7 => write!(w, "{}", field.into_bool().unwrap())
-    }.unwrap()
+        ColumnKind::String => print!("\"{}\"", field.into_string().unwrap()),
+        ColumnKind::Bool => print!("{}", field.into_bool().unwrap()),
+        ColumnKind::Int8 => print!("{}", field.into_i8().unwrap()),
+        ColumnKind::UInt8 => print!("{}", field.into_u8().unwrap()),
+        ColumnKind::Int16 => print!("{}", field.into_i16().unwrap()),
+        ColumnKind::UInt16 => print!("{}", field.into_u16().unwrap()),
+        ColumnKind::Int32 => print!("{}", field.into_i32().unwrap()),
+        ColumnKind::UInt32 => print!("{}", field.into_u32().unwrap()),
+        ColumnKind::Float32 => print!("{}", field.into_f32().unwrap()),
+        ColumnKind::Int64 => print!("{}", field.into_i64().unwrap()),
+        ColumnKind::UInt64 => print!("{}", field.into_u64().unwrap()),
+        ColumnKind::PackedBool0 => print!("{}", field.into_bool().unwrap()),
+        ColumnKind::PackedBool1 => print!("{}", field.into_bool().unwrap()),
+        ColumnKind::PackedBool2 => print!("{}", field.into_bool().unwrap()),
+        ColumnKind::PackedBool3 => print!("{}", field.into_bool().unwrap()),
+        ColumnKind::PackedBool4 => print!("{}", field.into_bool().unwrap()),
+        ColumnKind::PackedBool5 => print!("{}", field.into_bool().unwrap()),
+        ColumnKind::PackedBool6 => print!("{}", field.into_bool().unwrap()),
+        ColumnKind::PackedBool7 => print!("{}", field.into_bool().unwrap())
+    }
 }
 
 fn get_u32(field: Field, kind: ColumnKind) -> Option<u32> {

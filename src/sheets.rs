@@ -2,6 +2,7 @@ use phf::phf_map;
 
 pub enum SheetLinkTarget {
     ID,
+    #[allow(dead_code)]
     Field(&'static str)
 }
 

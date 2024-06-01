@@ -1,10 +1,12 @@
-use clio::{ClioPath, Output};
+use std::io::stdout;
+
+use clio::ClioPath;
 use image::ImageEncoder;
 use ironworks::{file::tex::{self, Format, Texture}, sqpack::{Install, Resource, SqPack}, Ironworks};
 use crate::err::Err;
 use crate::err::ToUnknownErr;
 
-pub fn extract(output: &mut Output, id: u32, game_dir: &Option<ClioPath>) -> Result<(), Err> {
+pub fn extract(id: u32, game_dir: &Option<ClioPath>) -> Result<(), Err> {
     let game_resource = if let Some(game_dir) = game_dir {
         Some(Install::at(game_dir.path()))
     } else {
@@ -19,7 +21,7 @@ pub fn extract(output: &mut Output, id: u32, game_dir: &Option<ClioPath>) -> Res
     let ironworks = Ironworks::new().with_resource(SqPack::new(game_resource));
     let icon_path = get_icon_path(id);
     let file = ironworks.file::<tex::Texture>(&icon_path).map_err(|_| Err::IconNotFound(icon_path.to_owned()))?;
-    write_as_png(output, &file, &icon_path)?;
+    print_png(&file, &icon_path)?;
 
     Ok(())
 }
@@ -37,14 +39,14 @@ fn get_icon_path(id: u32) -> String {
     format!("ui/icon/{}000/{}_hr1.tex", &icon[0..3], icon)
 }
 
-fn write_as_png<'a>(w: impl std::io::Write, file: &'a Texture, path: &str) -> Result<(), Err> {
+fn print_png<'a>(file: &'a Texture, path: &str) -> Result<(), Err> {
     let width = file.width() as u32;
     let height = file.height() as u32;
     let mut output: Vec<u8> = vec![0; (4 * width * height) as usize];
 
     file.decompress(path, &mut output)?;
 
-    let encoder = image::codecs::png::PngEncoder::new(w);
+    let encoder = image::codecs::png::PngEncoder::new(stdout());
     encoder.write_image(&output, width, height, image::ExtendedColorType::Rgba8).to_unknown_err()?;
 
     Ok(())

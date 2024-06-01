@@ -22,16 +22,16 @@ fn main() -> ExitCode {
     }
 }
 
-fn process(mut cli: Cli) -> Result<(), Err> {
+fn process(cli: Cli) -> Result<(), Err> {
     if let Command::Icon(CommandArgs { id }) = cli.command {
         match id {
             Id::Name(_) => Err(Err::NoSearchForIcon),
-            Id::Index(id) => icons::extract(&mut cli.file, id, &cli.game_dir)
+            Id::Index(id) => icons::extract(id, &cli.game_dir)
         }
     } else {
         match cli.command.id() {
             Id::Name(name) => extractor::search(cli.command.sheet(), &name, &cli.game_dir),
-            Id::Index(index) => extractor::extract(&mut cli.file, cli.command.sheet(), *index, &cli.game_dir),
+            Id::Index(index) => extractor::extract(cli.command.sheet(), *index, &cli.game_dir),
         }
     }
 }

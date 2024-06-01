@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use clap::{Args, Parser, Subcommand};
-use clio::{ClioPath, Output};
+use clio::ClioPath;
 use strum::IntoStaticStr;
 
 /// A command line utility that can extract data from FFXIV's internal Excel sheets.
@@ -10,10 +10,6 @@ use strum::IntoStaticStr;
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
-    /// The file that the output should be written to.
-    /// If not specified, writes to stdout.
-    #[clap(global = true, long, short, value_parser, default_value = "-")]
-    pub file: Output,
     /// Path to the game's directory.
     /// If not specified, attempts to find the game directory automatically.
     #[clap(global = true, long, short = 'd', value_parser, default_value = "Option::None")]
@@ -65,7 +61,7 @@ struct Never;
 
 impl std::error::Error for Never {}
 impl Display for Never {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         unimplemented!()
     }
 }
