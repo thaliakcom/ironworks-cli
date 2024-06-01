@@ -23,7 +23,7 @@ impl Display for Err {
             Self::ColumnNotFound(sheet, column) => writeln!(f, "Sheet {} has no column {}", sheet, column),
             Self::NoIndex(sheet, column) => writeln!(f, "Column {}::{} cannot be coerced to a u32", sheet, column),
             Self::IconNotFound(path) => writeln!(f, "No icon found at path \"{}\"", path),
-            Self::UnsupportedIconFormat(format, path) => writeln!(f, "Unsupported icon format {} at \"{}\"", format, path),
+            Self::UnsupportedIconFormat(format, path) => writeln!(f, "Unsupported icon format {:#04x} at \"{}\"", format, path),
             Self::UnsupportedSheet(sheet) => writeln!(f, "Unsupported sheet type {}", sheet),
             Self::NoSearchForIcon => writeln!(f, "Using the search feature is only supported for excel sheet subcommands"),
             Self::Unknown => writeln!(f, "An unknown error occurred")

@@ -1,5 +1,3 @@
-use std::io::{stdout, Write};
-
 use clio::{ClioPath, Output};
 use ironworks::{excel::{Excel, Field, Language}, file::exh::ColumnKind, sestring::SeString, sqpack::{Install, Resource, SqPack}, Ironworks};
 use ironworks_schema::{saint_coinach::Provider, Node, Schema};
