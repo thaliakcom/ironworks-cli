@@ -67,5 +67,5 @@ impl Display for Never {
 }
 
 fn parse_id(input: &str) -> Result<Id, Never> {
-    Ok(input.parse::<u32>().map_or(Id::Name(input.to_owned()), |v| Id::Index(v)))
+    Ok(input.parse::<u32>().map_or(Id::Name(input.to_owned()), Id::Index))
 }

@@ -30,7 +30,7 @@ fn process(cli: Cli) -> Result<(), Err> {
         }
     } else {
         match cli.command.id() {
-            Id::Name(name) => extractor::search(cli.command.sheet(), &name, &cli.game),
+            Id::Name(name) => extractor::search(cli.command.sheet(), name, &cli.game),
             Id::Index(index) => extractor::extract(cli.command.sheet(), *index, &cli.game),
         }
     }

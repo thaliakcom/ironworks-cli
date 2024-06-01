@@ -41,7 +41,7 @@ fn get_icon_path(id: u32) -> String {
     format!("ui/icon/{}000/{}_hr1.tex", &icon[0..3], icon)
 }
 
-fn print_png<'a>(file: &'a Texture, path: &str) -> Result<(), Err> {
+fn print_png(file: &Texture, path: &str) -> Result<(), Err> {
     let width = file.width() as u32;
     let height = file.height() as u32;
     let mut output: Vec<u8> = vec![0; (4 * width * height) as usize];
@@ -85,9 +85,7 @@ impl TextureDecompressor for Texture {
                 // to each color channel accordingly and expand them to u32s, then narrow
                 // them again to one u8 per color channel for the output array.
 
-                let mut i = 0;
-
-                for chunk in data.chunks(2) {
+                for (i, chunk) in data.chunks(2).enumerate() {
                     let value = u16::from_le_bytes(chunk.try_into().to_unknown_err()?);
 
                     let a = (value & 0x8000) as u32;
@@ -96,14 +94,12 @@ impl TextureDecompressor for Texture {
                     let b = (value & 0x001F) as u32;
 
                     let rgb = (r << 9) | (g << 6) | (b << 3);
-                    let argb = a * 0x1FE00 | rgb | ((rgb >> 5) & 0x070707);
+                    let argb = (a * 0x1FE00) | rgb | ((rgb >> 5) & 0x070707);
 
-                    output[i * 4 + 0] = (argb >> 16) as u8;
-                    output[i * 4 + 1] = (argb >> 8) as u8;
-                    output[i * 4 + 2] = (argb >> 0) as u8;
+                    output[i * 4]     = (argb >> 16) as u8;
+                    output[i * 4 + 1] = (argb >>  8) as u8;
+                    output[i * 4 + 2] =  argb        as u8;
                     output[i * 4 + 3] = (argb >> 24) as u8;
-
-                    i = i + 1;
                 }
             },
             Format::Rgba4 => {
@@ -113,17 +109,13 @@ impl TextureDecompressor for Texture {
                 // elements to get a u16 (one pixel), then extract the bits corresponding
                 // to each color channel accordingly and expand them into u8s.
 
-                let mut i = 0;
-
-                for chunk in data.chunks(2) {
+                for (i, chunk) in data.chunks(2).enumerate() {
                     let value = u16::from_le_bytes(chunk.try_into().to_unknown_err()?);
 
-                    output[i * 4 + 0] = (((value >> 8) & 0x0F) << 4) as u8;
-                    output[i * 4 + 1] = (((value >> 4) & 0x0F) << 4) as u8;
-                    output[i * 4 + 2] = (((value >> 0) & 0x0F) << 4) as u8;
+                    output[i * 4]     = (((value >>  8) & 0x0F) << 4) as u8;
+                    output[i * 4 + 1] = (((value >>  4) & 0x0F) << 4) as u8;
+                    output[i * 4 + 2] =  ((value & 0x0F)        << 4) as u8;
                     output[i * 4 + 3] = (((value >> 12) & 0x0F) << 4) as u8;
-
-                    i = i + 1;
                 }
             },
             // Rgba8 is already in the right format, so we don't need to do anything.
@@ -136,12 +128,12 @@ impl TextureDecompressor for Texture {
                 let len = data.len();
 
                 while i < len {
-                    output[i] = data[i + 2];
+                    output[i]     = data[i + 2];
                     output[i + 1] = data[i + 1];
-                    output[i + 2] = data[i + 0];
+                    output[i + 2] = data[i    ];
                     output[i + 3] = data[i + 3];
 
-                    i = i + 4;
+                    i += 4;
                 }
             },
             _ => Err(Err::UnsupportedIconFormat(format as u32, path.to_owned()))?

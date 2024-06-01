@@ -69,7 +69,7 @@ pub fn search(sheet_name: &'static str, search_str: &str, game_dir: &Option<Clio
         return Err(Err::UnsupportedSheet(sheet_name));
     }
 
-    if matches.len() == 0 {
+    if matches.is_empty() {
         println!("No matches found");
     } else {
         println!("{} matches found:", matches.len());
@@ -138,7 +138,7 @@ fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec
     
         Ok(result)
     } else {
-        return Err(Err::UnsupportedSheet(sheet_name));
+        Err(Err::UnsupportedSheet(sheet_name))
     }
 }
 
@@ -155,7 +155,7 @@ fn print_values(values: Vec<KeyValue>) -> Result<(), Err> {
             print!(",");
         }
     }
-    print!("}}\n");
+    println!("}}");
 
     Ok(())
 }
@@ -186,7 +186,7 @@ fn get_u32(field: Field) -> Option<u32> {
         Field::I64(num) => Some(num as u32),
         Field::U8(num) => Some(num as u32),
         Field::U16(num) => Some(num as u32),
-        Field::U32(num) => Some(num as u32),
+        Field::U32(num) => Some(num),
         Field::U64(num) => Some(num as u32),
         Field::F32(num) => Some(num as u32),
         _ => None
