@@ -12,8 +12,8 @@ pub struct Cli {
     pub command: Command,
     /// Path to the game's directory.
     /// If not specified, attempts to find the game directory automatically.
-    #[clap(global = true, long, short = 'd', value_parser, default_value = "Option::None")]
-    pub game_dir: Option<ClioPath>
+    #[clap(global = true, long, short, value_parser, default_value = "Option::None")]
+    pub game: Option<ClioPath>
 }
 
 #[derive(Subcommand, Debug, IntoStaticStr)]
