@@ -1,5 +1,5 @@
 use clio::ClioPath;
-use ironworks::{excel::{Excel, Field, Language}, file::exh::ColumnKind, sestring::SeString, sqpack::{Install, Resource, SqPack}, Ironworks};
+use ironworks::{excel::{Excel, Field, Language}, sestring::SeString, sqpack::{Install, Resource, SqPack}, Ironworks};
 use ironworks_schema::{saint_coinach::Provider, Node, Schema};
 use crate::{err::{Err, ToUnknownErr}, sheets::{LinkSource, SHEET_COLUMNS}};
 
@@ -84,8 +84,7 @@ pub fn search(sheet_name: &'static str, search_str: &str, game_dir: &Option<Clio
 
 struct KeyValue {
     key: String,
-    value: Field,
-    kind: ColumnKind
+    value: Field
 }
 
 /// Gets a [`Vec`] of the field values and their field names
@@ -99,7 +98,6 @@ fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec
     let schema = version.sheet(sheet_name).to_unknown_err()?;
     let sheet = excel.sheet(sheet_name).map_err(|_| Err::SheetNotFound(sheet_name))?;
     let row = sheet.row(row_id).map_err(|_| Err::RowNotFound(sheet_name, row_id))?;
-    let column_defs = sheet.columns().to_unknown_err()?;
     let sheet_data = SHEET_COLUMNS.get(sheet_name);
 
     if let Node::Struct(columns) = schema.node {
@@ -107,8 +105,7 @@ fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec
         .filter(|column| if let Some(data) = sheet_data { data.columns.contains(&column.name.as_ref()) } else { true })
         .map(|column| {
             let index = column.offset as usize;
-            let definition = column_defs.get(index).to_unknown_err()?;
-            Ok(KeyValue { key: column.name.clone(), value: row.field(index).to_unknown_err()?, kind: definition.kind() })
+            Ok(KeyValue { key: column.name.clone(), value: row.field(index).to_unknown_err()? })
         })
         .collect();
         let mut result: Vec<KeyValue> = fallible_result?;
@@ -119,8 +116,7 @@ fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec
                 let linked_row_id = if let LinkSource::Field(column_name) = link.source {
                     let column = columns.iter().find(|x| x.name == column_name).ok_or(Err::ColumnNotFound(sheet_name, column_name))?;
                     let index = column.offset as usize;
-                    let definition = column_defs.get(index).to_unknown_err()?;
-                    get_u32(row.field(index).to_unknown_err()?, definition.kind()).ok_or(Err::NoIndex(sheet_name, column_name))?
+                    get_u32(row.field(index).to_unknown_err()?).ok_or(Err::NoIndex(sheet_name, column_name))?
                 } else {
                     row_id
                 };
@@ -128,7 +124,6 @@ fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec
                 let linked_row = linked_sheet.row(linked_row_id).map_err(|_| Err::RowNotFound(link.sheet, linked_row_id))?;
                 let linked_schema = version.sheet(link.sheet).to_unknown_err()?;
                 let linked_columns = if let Node::Struct(columns) = linked_schema.node { Ok(columns) } else { Err(Err::UnsupportedSheet(link.sheet)) }?;
-                let linked_defs = linked_sheet.columns().to_unknown_err()?;
                 let column_data = linked_columns.into_iter().filter_map(|column| {
                     let link_data = link.columns.iter().find(|x| x.source == column.name)?;
 
@@ -136,9 +131,7 @@ fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec
                 });
 
                 for (link_data, column) in column_data {
-                    let index = column.offset as usize;
-                    let definition = linked_defs.get(index).to_unknown_err()?;
-                    result.push(KeyValue { key: link_data.target.to_owned(), value: linked_row.field(index).to_unknown_err()?, kind: definition.kind() });
+                    result.push(KeyValue { key: link_data.target.to_owned(), value: linked_row.field(column.offset as usize).to_unknown_err()? });
                 }
             }
         }
@@ -156,7 +149,7 @@ fn print_values(values: Vec<KeyValue>) -> Result<(), Err> {
 
     for (i, column) in values.into_iter().enumerate() {
         print!("\"{}\":", &column.key);
-        print_value(column.value, column.kind);
+        print_value(&column.value);
 
         if i < len - 1 {
             print!(",");
@@ -168,42 +161,34 @@ fn print_values(values: Vec<KeyValue>) -> Result<(), Err> {
 }
 
 /// Prints the value contained in the field to [`stdout`].
-fn print_value(field: Field, kind: ColumnKind) {
-    match kind {
-        ColumnKind::String => print!("\"{}\"", field.into_string().unwrap()),
-        ColumnKind::Bool => print!("{}", field.into_bool().unwrap()),
-        ColumnKind::Int8 => print!("{}", field.into_i8().unwrap()),
-        ColumnKind::UInt8 => print!("{}", field.into_u8().unwrap()),
-        ColumnKind::Int16 => print!("{}", field.into_i16().unwrap()),
-        ColumnKind::UInt16 => print!("{}", field.into_u16().unwrap()),
-        ColumnKind::Int32 => print!("{}", field.into_i32().unwrap()),
-        ColumnKind::UInt32 => print!("{}", field.into_u32().unwrap()),
-        ColumnKind::Float32 => print!("{}", field.into_f32().unwrap()),
-        ColumnKind::Int64 => print!("{}", field.into_i64().unwrap()),
-        ColumnKind::UInt64 => print!("{}", field.into_u64().unwrap()),
-        ColumnKind::PackedBool0 => print!("{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool1 => print!("{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool2 => print!("{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool3 => print!("{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool4 => print!("{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool5 => print!("{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool6 => print!("{}", field.into_bool().unwrap()),
-        ColumnKind::PackedBool7 => print!("{}", field.into_bool().unwrap())
+fn print_value(field: &Field) {
+    match field {
+        Field::String(s) => print!("\"{}\"", s),
+        Field::Bool(b) => print!("{}", b),
+        Field::I8(num) => print!("{}", num),
+        Field::I16(num) => print!("{}", num),
+        Field::I32(num) => print!("{}", num),
+        Field::I64(num) => print!("{}", num),
+        Field::U8(num) => print!("{}", num),
+        Field::U16(num) => print!("{}", num),
+        Field::U32(num) => print!("{}", num),
+        Field::U64(num) => print!("{}", num),
+        Field::F32(num) => print!("{}", num)
     }
 }
 
 /// Attempts to convert the value contained in the field to [`u32`].
-fn get_u32(field: Field, kind: ColumnKind) -> Option<u32> {
-    match kind {
-        ColumnKind::Int8 => Some(field.into_i8().unwrap() as u32),
-        ColumnKind::UInt8 => Some(field.into_u8().unwrap() as u32),
-        ColumnKind::Int16 => Some(field.into_i16().unwrap() as u32),
-        ColumnKind::UInt16 => Some(field.into_u16().unwrap() as u32),
-        ColumnKind::Int32 => Some(field.into_i32().unwrap() as u32),
-        ColumnKind::UInt32 => Some(field.into_u32().unwrap() as u32),
-        ColumnKind::Float32 => Some(field.into_f32().unwrap() as u32),
-        ColumnKind::Int64 => Some(field.into_i64().unwrap() as u32),
-        ColumnKind::UInt64 => Some(field.into_u64().unwrap() as u32),
+fn get_u32(field: Field) -> Option<u32> {
+    match field {
+        Field::I8(num) => Some(num as u32),
+        Field::I16(num) => Some(num as u32),
+        Field::I32(num) => Some(num as u32),
+        Field::I64(num) => Some(num as u32),
+        Field::U8(num) => Some(num as u32),
+        Field::U16(num) => Some(num as u32),
+        Field::U32(num) => Some(num as u32),
+        Field::U64(num) => Some(num as u32),
+        Field::F32(num) => Some(num as u32),
         _ => None
     }
 }
