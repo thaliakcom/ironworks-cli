@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, time::Instant};
 
 use clio::ClioPath;
 use ironworks::{excel::Field, sestring::SeString};
@@ -67,6 +67,9 @@ struct KeyValue {
 /// the fields specified in `sheets.rs` are extracted.
 fn get_values(sheet_name: &'static str, row_id: u32, game_dir: &Option<ClioPath>) -> Result<Vec<KeyValue>, Err> {
     let Init { excel, schema, sheet, version, .. } = Init::new(sheet_name, game_dir)?;
+    // For some reason calling `sheet.row()` on the Action sheet
+    // takes longer than any other sheet by a magnitude of about 4x.
+    // Since this is a bug in the dependency, we can't fix it.
     let row = sheet.row(row_id).map_err(|_| Err::RowNotFound(sheet_name, row_id))?;
     let sheet_data = SHEET_COLUMNS.get(sheet_name);
 
