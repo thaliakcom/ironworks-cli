@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use clio::ClioPath;
 use ironworks::{excel::Field, sestring::SeString};
 use ironworks_schema::{Node, Schema};
-use crate::{err::{Err, ToUnknownErr}, init::Init, sheets::{Column, LinkSource, SHEET_COLUMNS}};
+use crate::{err::{Err, ToUnknownErr}, init::Init, sheets::{Column, LinkCondition, LinkSource, SHEET_COLUMNS}};
 
 /// Extracts a single row from the given sheet and prints a
 /// JSON representation of the result to [`stdout`].
@@ -86,6 +86,13 @@ fn get_values(sheet_name: &'static str, row_id: u32, game_dir: &Option<ClioPath>
     
         if let Some(data) = sheet_data {
             for link in data.links {
+                if match link.condition {
+                    LinkCondition::Always => false,
+                    LinkCondition::IfNot(condition_col, ref condition_val) => compare_fields(&row.field(columns.iter().find(|x| x.name == condition_col).unwrap().offset as usize).unwrap(), condition_val)
+                } {
+                    continue;
+                }
+
                 let linked_sheet = excel.sheet(link.sheet).map_err(|_| Err::SheetNotFound(link.sheet))?;
                 let linked_row_id = if let LinkSource::Field(column_name) = link.source {
                     let column = columns.iter().find(|x| x.name == column_name).ok_or(Err::ColumnNotFound(sheet_name, column_name))?;
@@ -163,5 +170,22 @@ fn get_u32(field: Field) -> Option<u32> {
         Field::U64(num) => Some(num as u32),
         Field::F32(num) => Some(num as u32),
         _ => None
+    }
+}
+
+fn compare_fields(a: &Field, b: &Field) -> bool {
+    match (a, b) {
+        (Field::String(a), Field::String(b)) => a.to_string() == b.to_string(),
+        (Field::Bool(a), Field::Bool(b)) => a == b,
+        (Field::I8(a), Field::I8(b)) => a == b,
+        (Field::I16(a), Field::I16(b)) => a == b,
+        (Field::I32(a), Field::I32(b)) => a == b,
+        (Field::I64(a), Field::I64(b)) => a == b,
+        (Field::U8(a), Field::U8(b)) => a == b,
+        (Field::U16(a), Field::U16(b)) => a == b,
+        (Field::U32(a), Field::U32(b)) => a == b,
+        (Field::U64(a), Field::U64(b)) => a == b,
+        (Field::F32(a), Field::F32(b)) => a == b,
+        _ => false
     }
 }

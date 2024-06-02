@@ -1,3 +1,4 @@
+use ironworks::excel::Field;
 use phf::phf_map;
 
 /// A source for a [`SheetLink`], i.e. the type of column in the source
@@ -40,7 +41,16 @@ pub struct SheetLink {
     /// The sheet to link to.
     pub sheet: &'static str,
     /// Which columns in the linked sheet are used, and whether they should be aliased.
-    pub columns: &'static [SheetLinkColumn]
+    pub columns: &'static [SheetLinkColumn],
+    /// Whether this link should be established at all.
+    pub condition: LinkCondition
+}
+
+pub enum LinkCondition {
+    /// Condition always evaluates to `true`.
+    Always,
+    /// Condition evaluates to `true` if the given column in the source row does _not_ contain the value.
+    IfNot(&'static str, Field)
 }
 
 /// Data for a sheet.
@@ -89,7 +99,8 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             SheetLink {
                 source: LinkSource::ID,
                 sheet: "ActionTransient",
-                columns: &[SheetLinkColumn { source: "Description", target: "Description" }]
+                columns: &[SheetLinkColumn { source: "Description", target: "Description" }],
+                condition: LinkCondition::IfNot("ClassJob", Field::I8(-1))
             }
         ]
     },
