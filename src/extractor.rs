@@ -120,9 +120,9 @@ fn print_values(values: Vec<KeyValue>) -> Result<(), Err> {
     print!("{{");
     let len = values.len();
 
-    for (i, column) in values.into_iter().enumerate() {
-        print!("\"{}\":", &column.key);
-        print_value(&column.value);
+    for (i, field) in values.into_iter().enumerate() {
+        print!("\"{}{}\":", &field.key.chars().nth(0).unwrap().to_lowercase(), &field.key[1..]);
+        print_value(&field.value);
 
         if i < len - 1 {
             print!(",");
