@@ -146,7 +146,7 @@ fn print_values(values: Vec<KeyValue>) -> Result<(), Err> {
 /// Prints the value contained in the field to [`stdout`].
 fn print_value(field: &Field) {
     match field {
-        Field::String(s) => print!("\"{}\"", s),
+        Field::String(s) => print!("\"{}\"", s.to_string().replace("\n", "\\n").replace("\"", "\\\"")),
         Field::Bool(b) => print!("{}", b),
         Field::I8(num) => print!("{}", num),
         Field::I16(num) => print!("{}", num),
