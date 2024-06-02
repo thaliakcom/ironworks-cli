@@ -2,24 +2,14 @@ use std::io::stdout;
 
 use clio::ClioPath;
 use image::ImageEncoder;
-use ironworks::{file::tex::{self, Format, Texture}, sqpack::{Install, Resource, SqPack}, Ironworks};
-use crate::err::Err;
+use ironworks::{file::tex::{self, Format, Texture}, sqpack::SqPack, Ironworks};
+use crate::{err::Err, init::Init};
 use crate::err::ToUnknownErr;
 
 /// Extracts an icon from the game files by ID and prints
 /// it to [`stdout`] as a PNG.
 pub fn extract(id: u32, game_dir: &Option<ClioPath>) -> Result<(), Err> {
-    let game_resource = if let Some(game_dir) = game_dir {
-        Some(Install::at(game_dir.path()))
-    } else {
-        Install::search()
-    }.ok_or(Err::GameNotFound)?;
-
-    // There's currently an error in ironworks where search() always returns
-    // Some(), even if no path was found. We do this check to ensure the path
-    // actually points to the game.
-    game_resource.version(0).map_err(|_| Err::GameNotFound)?;
-
+    let game_resource = Init::get_game_resource(game_dir)?;
     let ironworks = Ironworks::new().with_resource(SqPack::new(game_resource));
     let icon_path = get_icon_path(id);
     let file = ironworks.file::<tex::Texture>(&icon_path).map_err(|_| Err::IconNotFound(icon_path.to_owned()))?;

@@ -9,6 +9,7 @@ mod extractor;
 mod err;
 mod sheets;
 mod icons;
+mod init;
 
 fn main() -> ExitCode {
     let cli = Cli::parse();

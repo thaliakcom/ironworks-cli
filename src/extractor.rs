@@ -1,25 +1,14 @@
+use std::borrow::Cow;
+
 use clio::ClioPath;
-use ironworks::{excel::{Excel, Field, Language}, sestring::SeString, sqpack::{Install, Resource, SqPack}, Ironworks};
-use ironworks_schema::{saint_coinach::Provider, Node, Schema};
-use crate::{err::{Err, ToUnknownErr}, sheets::{LinkSource, SHEET_COLUMNS}};
+use ironworks::{excel::Field, sestring::SeString};
+use ironworks_schema::{Node, Schema};
+use crate::{err::{Err, ToUnknownErr}, init::Init, sheets::{Column, LinkSource, SHEET_COLUMNS}};
 
 /// Extracts a single row from the given sheet and prints a
 /// JSON representation of the result to [`stdout`].
 pub fn extract(sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>) -> Result<(), Err> {
-    let game_resource = if let Some(game_dir) = game_dir {
-        Some(Install::at(game_dir.path()))
-    } else {
-        Install::search()
-    }.ok_or(Err::GameNotFound)?;
-
-    // There's currently an error in ironworks where search() always returns
-    // Some(), even if no path was found. We do this check to ensure the path
-    // actually points to the game.
-    game_resource.version(0).map_err(|_| Err::GameNotFound)?;
-
-    let ironworks = Ironworks::new().with_resource(SqPack::new(game_resource));
-    let excel = Excel::with().language(Language::English).build(&ironworks);
-    let values = get_values(excel, sheet_name, id)?;
+    let values = get_values(sheet_name, id, game_dir)?;
 
     print_values(values)?;
 
@@ -32,23 +21,7 @@ pub fn extract(sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>) -
 /// Note that this function does not search through _all_ columns; instead
 /// only the columns specified in `sheets.rs` are searched.
 pub fn search(sheet_name: &'static str, search_str: &str, game_dir: &Option<ClioPath>) -> Result<(), Err> {
-    let game_resource = if let Some(game_dir) = game_dir {
-        Some(Install::at(game_dir.path()))
-    } else {
-        Install::search()
-    }.ok_or(Err::GameNotFound)?;
-
-    // There's currently an error in ironworks where search() always returns
-    // Some(), even if no path was found. We do this check to ensure the path
-    // actually points to the game.
-    game_resource.version(0).map_err(|_| Err::GameNotFound)?;
-
-    let ironworks = Ironworks::new().with_resource(SqPack::new(game_resource));
-    let excel = Excel::with().language(Language::English).build(&ironworks);
-    let provider = Provider::new().to_unknown_err()?;
-    let version = provider.version("HEAD").to_unknown_err()?;
-    let schema = version.sheet(sheet_name).to_unknown_err()?;
-    let sheet = excel.sheet(sheet_name).map_err(|_| Err::SheetNotFound(sheet_name))?;
+    let Init { schema, sheet, .. } = Init::new(sheet_name, game_dir)?;
     let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err()?;
     let mut matches: Vec<(u32, SeString)> = Vec::new();
 
@@ -83,7 +56,7 @@ pub fn search(sheet_name: &'static str, search_str: &str, game_dir: &Option<Clio
 }
 
 struct KeyValue {
-    key: String,
+    key: Cow<'static, str>,
     value: Field
 }
 
@@ -92,31 +65,31 @@ struct KeyValue {
 ///
 /// Note that this function does not extract _all_ fields. Instead only
 /// the fields specified in `sheets.rs` are extracted.
-fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec<KeyValue>, Err> {
-    let provider = Provider::new().to_unknown_err()?;
-    let version = provider.version("HEAD").to_unknown_err()?;
-    let schema = version.sheet(sheet_name).to_unknown_err()?;
-    let sheet = excel.sheet(sheet_name).map_err(|_| Err::SheetNotFound(sheet_name))?;
+fn get_values(sheet_name: &'static str, row_id: u32, game_dir: &Option<ClioPath>) -> Result<Vec<KeyValue>, Err> {
+    let Init { excel, schema, sheet, version, .. } = Init::new(sheet_name, game_dir)?;
     let row = sheet.row(row_id).map_err(|_| Err::RowNotFound(sheet_name, row_id))?;
     let sheet_data = SHEET_COLUMNS.get(sheet_name);
 
     if let Node::Struct(columns) = schema.node {
-        let fallible_result: Result<Vec<KeyValue>, Err> = columns.iter()
-        .filter(|column| if let Some(data) = sheet_data { data.columns.contains(&column.name.as_ref()) } else { true })
-        .map(|column| {
-            let index = column.offset as usize;
-            Ok(KeyValue { key: column.name.clone(), value: row.field(index).to_unknown_err()? })
-        })
-        .collect();
-        let mut result: Vec<KeyValue> = fallible_result?;
+        let mut result: Vec<KeyValue> = columns.iter()
+            .filter_map(|column| {
+                if let Some(data) = sheet_data {
+                    data.columns.iter().find(|x| x.name() == column.name).map(|matching_column| match matching_column {
+                            Column::AsIs(name) => KeyValue { key: Cow::Borrowed(name), value: row.field(column.offset as usize).unwrap() },
+                            Column::Alias(_, alias) => KeyValue { key: Cow::Borrowed(alias), value: row.field(column.offset as usize).unwrap() }
+                        })
+                } else {
+                    Some(KeyValue { key: Cow::Owned(column.name.to_owned()), value: row.field(column.offset as usize).unwrap() })
+                }
+            })
+            .collect();
     
         if let Some(data) = sheet_data {
             for link in data.links {
                 let linked_sheet = excel.sheet(link.sheet).map_err(|_| Err::SheetNotFound(link.sheet))?;
                 let linked_row_id = if let LinkSource::Field(column_name) = link.source {
                     let column = columns.iter().find(|x| x.name == column_name).ok_or(Err::ColumnNotFound(sheet_name, column_name))?;
-                    let index = column.offset as usize;
-                    get_u32(row.field(index).to_unknown_err()?).ok_or(Err::NoIndex(sheet_name, column_name))?
+                    get_u32(row.field(column.offset as usize).to_unknown_err()?).ok_or(Err::NoIndex(sheet_name, column_name))?
                 } else {
                     row_id
                 };
@@ -127,11 +100,11 @@ fn get_values(excel: Excel, sheet_name: &'static str, row_id: u32) -> Result<Vec
                 let column_data = linked_columns.into_iter().filter_map(|column| {
                     let link_data = link.columns.iter().find(|x| x.source == column.name)?;
 
-                    Some((link_data, column))
+                    Some((link_data, column.offset))
                 });
 
-                for (link_data, column) in column_data {
-                    result.push(KeyValue { key: link_data.target.to_owned(), value: linked_row.field(column.offset as usize).to_unknown_err()? });
+                for (link_data, offset) in column_data {
+                    result.push(KeyValue { key: Cow::Borrowed(link_data.target), value: linked_row.field(offset as usize).to_unknown_err()? });
                 }
             }
         }

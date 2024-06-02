@@ -11,6 +11,20 @@ pub enum LinkSource {
     Field(&'static str)
 }
 
+pub enum Column {
+    AsIs(&'static str),
+    Alias(&'static str, &'static str)
+}
+
+impl Column {
+    pub fn name(&self) -> &str {
+        match self {
+            Column::AsIs(s) => s,
+            Column::Alias(s, ..) => s
+        }
+    }
+}
+
 /// Represents which columns in the linked sheet are used.
 pub struct SheetLinkColumn {
     /// The name of a column in the target sheet to print.
@@ -32,7 +46,7 @@ pub struct SheetLink {
 /// Data for a sheet.
 pub struct SheetData {
     /// Which columns to add to the output.
-    pub columns: &'static [&'static str],
+    pub columns: &'static [Column],
     /// Whether data from another sheet should be added to the output.
     pub links: &'static [SheetLink],
     /// Which columns to search in.
@@ -42,31 +56,31 @@ pub struct SheetData {
 pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
     "Action" => SheetData {
         columns: &[
-            "Name",
-            "Icon",
-            "ActionCategory",
-            "ClassJob",
-            "ClassJobLevel",
-            "IsRoleAction",
-            "CanTargetSelf",
-            "CanTargetParty",
-            "CanTargetFriendly",
-            "CanTargetHostile",
-            "CanTargetDead",
-            "TargetArea",
-            "CastType",
-            "BehaviourType",
-            "Range",
-            "EffectRange",
-            "Action{Combo}",
-            "PreservesCombo",
-            "Cast<100ms>",
-            "Recast<100ms>",
-            "CooldownGroup",
-            "MaxCharges",
-            "AttackType",
-            "Aspect",
-            "IsPlayerAction"
+            Column::AsIs("Name"),
+            Column::AsIs("Icon"),
+            Column::AsIs("ActionCategory"),
+            Column::AsIs("ClassJob"),
+            Column::AsIs("ClassJobLevel"),
+            Column::AsIs("IsRoleAction"),
+            Column::AsIs("CanTargetSelf"),
+            Column::AsIs("CanTargetParty"),
+            Column::AsIs("CanTargetFriendly"),
+            Column::AsIs("CanTargetHostile"),
+            Column::AsIs("CanTargetDead"),
+            Column::AsIs("TargetArea"),
+            Column::AsIs("CastType"),
+            Column::AsIs("BehaviourType"),
+            Column::AsIs("Range"),
+            Column::AsIs("EffectRange"),
+            Column::Alias("Action{Combo}", "ActionCombo"),
+            Column::AsIs("PreservesCombo"),
+            Column::Alias("Cast<100ms>", "Cast100ms"),
+            Column::Alias("Recast<100ms>", "Recast100ms"),
+            Column::AsIs("CooldownGroup"),
+            Column::AsIs("MaxCharges"),
+            Column::AsIs("AttackType"),
+            Column::AsIs("Aspect"),
+            Column::AsIs("IsPlayerAction")
         ],
         search_columns: &[
             "Name"
@@ -81,17 +95,17 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
     },
     "Status" => SheetData {
         columns: &[
-            "Name",
-            "Description",
-            "Icon",
-            "MaxStacks",
-            "StatusCategory",
-            "HitEffect",
-            "Transfiguration",
-            "IsGaze",
-            "CanDispel",
-            "InflictedByActor",
-            "IsPermanent"
+            Column::AsIs("Name"),
+            Column::AsIs("Description"),
+            Column::AsIs("Icon"),
+            Column::AsIs("MaxStacks"),
+            Column::AsIs("StatusCategory"),
+            Column::AsIs("HitEffect"),
+            Column::AsIs("Transfiguration"),
+            Column::AsIs("IsGaze"),
+            Column::AsIs("CanDispel"),
+            Column::AsIs("InflictedByActor"),
+            Column::AsIs("IsPermanent"),
         ],
         search_columns: &[
             "Name",
@@ -101,23 +115,56 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
     },
     "ContentFinderCondition" => SheetData {
         columns: &[
-            "TerritoryType",
-            "ClassJobLevel{Required}",
-            "ClassJobLevel{Sync}",
-            "ItemLevel{Required}",
-            "ItemLevel{Sync}",
-            "AllowUndersized",
-            "AllowExplorerMode",
-            "HighEndDuty",
-            "Name",
-            "NameShort",
-            "ContentType",
-            "Image",
-            "Icon"
+            Column::AsIs("TerritoryType"),
+            Column::Alias("ClassJobLevel{Required}", "ClassJobLevelRequired"),
+            Column::Alias("ClassJobLevel{Sync}", "ClassJobLevelSync"),
+            Column::Alias("ItemLevel{Required}", "ItemLevelRequired"),
+            Column::Alias("ItemLevel{Sync}", "ItemLevelSync"),
+            Column::AsIs("AllowUndersized"),
+            Column::AsIs("AllowExplorerMode"),
+            Column::AsIs("HighEndDuty"),
+            Column::AsIs("Name"),
+            Column::AsIs("NameShort"),
+            Column::AsIs("ShortCode"),
+            Column::AsIs("ContentType"),
+            Column::AsIs("Image"),
+            Column::AsIs("Icon")
         ],
         search_columns: &[
-            "Name"
+            "Name",
+            "ShortCode"
         ],
         links: &[]
     }
 };
+
+#[cfg(test)]
+mod tests {
+    use ironworks_schema::Node;
+    use crate::init::Init;
+    use super::*;
+
+    #[test]
+    fn sheets_data_valid() {
+        let mut non_matching_columns: Vec<String> = Vec::new();
+
+        for (sheet_name, data) in SHEET_COLUMNS.entries() {
+            let (schema, ..) = Init::get_schema(sheet_name, "2024.03.27.0000.0000").unwrap();
+
+            if let Node::Struct(columns) = schema.node {
+                let column_names: Vec<_> = columns.iter().map(|x| x.name.to_owned()).collect();
+
+                for column in data.columns {
+                    let name = column.name();
+                    if !column_names.iter().any(|y| y == name) {
+                        non_matching_columns.push(format!("{}::{}", sheet_name, name));
+                    }
+                }
+            } else {
+                panic!("Schema {} of incompatible type", sheet_name);
+            }
+        }
+
+        assert!(non_matching_columns.is_empty(), "Columns {:#?} are defined in sheets.rs but do not actually exist.", non_matching_columns);
+    }
+}
