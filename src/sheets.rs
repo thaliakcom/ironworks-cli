@@ -49,6 +49,7 @@ pub struct SheetLink {
 pub enum LinkCondition {
     /// Condition always evaluates to `true`.
     Always,
+    #[allow(dead_code)]
     /// Condition evaluates to `true` if the given column in the source row does _not_ contain the value.
     IfNot(&'static str, Field)
 }
@@ -100,7 +101,7 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
                 source: LinkSource::ID,
                 sheet: "ActionTransient",
                 columns: &[SheetLinkColumn { source: "Description", target: "Description" }],
-                condition: LinkCondition::IfNot("ClassJob", Field::I8(-1))
+                condition: LinkCondition::Always
             }
         ]
     },
