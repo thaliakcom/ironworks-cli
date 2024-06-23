@@ -3,8 +3,8 @@ use std::io::stdout;
 use clio::ClioPath;
 use image::ImageEncoder;
 use ironworks::{file::tex::{self, Format, Texture}, sqpack::SqPack, Ironworks};
-use crate::{err::Err, init::Init};
-use crate::err::ToUnknownErr;
+use crate::err::{Err, ToUnknownErr};
+use super::Init;
 
 /// Extracts an icon from the game files by ID and prints
 /// it to [`stdout`] as a PNG.

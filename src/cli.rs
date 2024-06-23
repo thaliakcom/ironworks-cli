@@ -25,6 +25,9 @@ pub enum Command {
     Action(CommandArgs),
     /// Retrieves information about a specific status effect.
     Status(CommandArgs),
+    /// Retrieves a list of all job actions for a specific class or job.
+    #[clap(name = "job-actions")]
+    JobActions(CommandArgs),
     /// Retrieves a specific icon.
     #[clap(name = "icon")]
     Icon(CommandArgs)
@@ -32,7 +35,7 @@ pub enum Command {
 
 impl Command {
     pub fn id(&self) -> &Id {
-        let (Command::ContentFinderCondition(args) | Command::Action(args) | Command::Status(args) | Command::Icon(args)) = self;
+        let (Command::ContentFinderCondition(args) | Command::Action(args) | Command::Status(args) | Command::Icon(args) | Command::JobActions(args)) = self;
         &args.id
     }
 

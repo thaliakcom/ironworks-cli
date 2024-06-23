@@ -153,7 +153,7 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
 #[cfg(test)]
 mod tests {
     use ironworks_schema::Node;
-    use crate::init::Init;
+    use super::super::Init;
     use super::*;
 
     #[test]

@@ -9,9 +9,10 @@ pub enum Err {
     ColumnNotFound(&'static str, &'static str),
     NoIndex(&'static str, &'static str),
     IconNotFound(String),
+    JobNotFound(u32),
     UnsupportedIconFormat(u32, String),
     UnsupportedSheet(&'static str),
-    NoSearchForIcon,
+    SearchNotSupported,
     Unknown
 }
 
@@ -25,9 +26,10 @@ impl Display for Err {
             Self::ColumnNotFound(sheet, column) => writeln!(f, "Sheet {} has no column {}", sheet, column),
             Self::NoIndex(sheet, column) => writeln!(f, "Column {}::{} cannot be coerced to a u32", sheet, column),
             Self::IconNotFound(path) => writeln!(f, "No icon found at path \"{}\"", path),
+            Self::JobNotFound(job) => writeln!(f, "There is no class or job with ID \"{}\"", job),
             Self::UnsupportedIconFormat(format, path) => writeln!(f, "Unsupported icon format {:#04x} at \"{}\"", format, path),
             Self::UnsupportedSheet(sheet) => writeln!(f, "Unsupported sheet type {}", sheet),
-            Self::NoSearchForIcon => writeln!(f, "Using the search feature is only supported for excel sheet subcommands"),
+            Self::SearchNotSupported => writeln!(f, "Using the search feature is only supported for excel sheet subcommands"),
             Self::Unknown => writeln!(f, "An unknown error occurred")
         }
     }

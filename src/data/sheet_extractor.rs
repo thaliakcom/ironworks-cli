@@ -1,9 +1,11 @@
-use std::{borrow::Cow, time::Instant};
+use std::borrow::Cow;
 
 use clio::ClioPath;
 use ironworks::{excel::Field, sestring::SeString};
 use ironworks_schema::{Node, Schema};
-use crate::{err::{Err, ToUnknownErr}, init::Init, sheets::{Column, LinkCondition, LinkSource, SHEET_COLUMNS}};
+use crate::err::{Err, ToUnknownErr};
+use super::sheets::{Column, LinkCondition, LinkSource, SHEET_COLUMNS};
+use super::Init;
 
 /// Extracts a single row from the given sheet and prints a
 /// JSON representation of the result to [`stdout`].
