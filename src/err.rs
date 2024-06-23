@@ -12,7 +12,6 @@ pub enum Err {
     JobNotFound(u32),
     UnsupportedIconFormat(u32, String),
     UnsupportedSheet(&'static str),
-    SearchNotSupported,
     Unknown
 }
 
@@ -29,7 +28,6 @@ impl Display for Err {
             Self::JobNotFound(job) => writeln!(f, "There is no class or job with ID \"{}\"", job),
             Self::UnsupportedIconFormat(format, path) => writeln!(f, "Unsupported icon format {:#04x} at \"{}\"", format, path),
             Self::UnsupportedSheet(sheet) => writeln!(f, "Unsupported sheet type {}", sheet),
-            Self::SearchNotSupported => writeln!(f, "Using the search feature is only supported for excel sheet subcommands"),
             Self::Unknown => writeln!(f, "An unknown error occurred")
         }
     }

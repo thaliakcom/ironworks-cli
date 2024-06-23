@@ -2,7 +2,7 @@ use std::process::ExitCode;
 use crate::err::Err;
 
 use clap::Parser;
-use cli::{Cli, Command, CommandArgs, Id};
+use cli::{Cli, Command, IconArgs, Id, JobActionsCommandArgs, SheetCommandArgs};
 
 mod cli;
 mod data;
@@ -22,22 +22,16 @@ fn main() -> ExitCode {
 
 fn process(cli: Cli) -> Result<(), Err> {
     match cli.command {
-        Command::Icon(CommandArgs { id }) => {
-            match id {
-                Id::Name(_) => Err(Err::SearchNotSupported),
-                Id::Index(id) => data::icons::extract(id, &cli.game)
-            }
+        Command::Icon(IconArgs { id }) => data::icons::extract(id, &cli.game),
+        Command::JobActions(JobActionsCommandArgs { base, names }) => {
+            data::job_actions::get(&base.id, &cli.game, names, base.pretty)
         },
-        Command::JobActions(CommandArgs { id }) => {
+        Command::ContentFinderCondition(SheetCommandArgs { ref id, pretty })
+      | Command::Action(SheetCommandArgs { ref id, pretty })
+      | Command::Status(SheetCommandArgs { ref id, pretty }) => {
             match id {
-                Id::Name(_) => Err(Err::SearchNotSupported),
-                Id::Index(id) => data::job_actions::get(id, &cli.game)
-            }
-        },
-        _ => {
-            match cli.command.id() {
                 Id::Name(name) => data::sheet_extractor::search(cli.command.sheet(), name, &cli.game),
-                Id::Index(index) => data::sheet_extractor::extract(cli.command.sheet(), *index, &cli.game),
+                Id::Index(index) => data::sheet_extractor::extract(cli.command.sheet(), *index, &cli.game, pretty),
             }
         }
     }

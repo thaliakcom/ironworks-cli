@@ -9,10 +9,14 @@ use super::Init;
 
 /// Extracts a single row from the given sheet and prints a
 /// JSON representation of the result to [`stdout`].
-pub fn extract(sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>) -> Result<(), Err> {
+pub fn extract(sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>, pretty_print: bool) -> Result<(), Err> {
     let values = get_values(sheet_name, id, game_dir)?;
 
-    print_values(values)?;
+    if pretty_print {
+        pretty_print_values(values)?;
+    } else {
+        print_values(values)?;
+    }
 
     Ok(())
 }
@@ -145,8 +149,26 @@ fn print_values(values: Vec<KeyValue>) -> Result<(), Err> {
     Ok(())
 }
 
+/// Prints the list of named values to [`stdout`] in JSON format.
+fn pretty_print_values(values: Vec<KeyValue>) -> Result<(), Err> {
+    println!("{{");
+    let len = values.len();
+
+    for (i, field) in values.into_iter().enumerate() {
+        print!("  \"{}{}\": ", &field.key.chars().nth(0).unwrap().to_lowercase(), &field.key[1..]);
+        print_value(&field.value);
+
+        if i < len - 1 {
+            print!(",\n");
+        }
+    }
+    println!("\n}}");
+
+    Ok(())
+}
+
 /// Prints the value contained in the field to [`stdout`].
-fn print_value(field: &Field) {
+pub fn print_value(field: &Field) {
     match field {
         Field::String(s) => print!("\"{}\"", s.to_string().replace("\n", "\\n").replace("\"", "\\\"")),
         Field::Bool(b) => print!("{}", b),

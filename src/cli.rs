@@ -19,26 +19,21 @@ pub struct Cli {
 #[derive(Subcommand, Debug, IntoStaticStr)]
 #[clap(rename_all = "verbatim")]
 pub enum Command {
-    /// Retrieves information about a specific duty.
-    ContentFinderCondition(CommandArgs),
-    /// Retrieves information about a specific action.
-    Action(CommandArgs),
-    /// Retrieves information about a specific status effect.
-    Status(CommandArgs),
-    /// Retrieves a list of all job actions for a specific class or job.
+    /// Retrieves JSON information about a specific duty.
+    ContentFinderCondition(SheetCommandArgs),
+    /// Retrieves JSON information about a specific action.
+    Action(SheetCommandArgs),
+    /// Retrieves JSON information about a specific status effect.
+    Status(SheetCommandArgs),
+    /// Prints an array of the numerical IDs of all job actions for a specific class or job.
     #[clap(name = "job-actions")]
-    JobActions(CommandArgs),
-    /// Retrieves a specific icon.
+    JobActions(JobActionsCommandArgs),
+    /// Retrieves a specific icon and prints its binary data.
     #[clap(name = "icon")]
-    Icon(CommandArgs)
+    Icon(IconArgs)
 }
 
 impl Command {
-    pub fn id(&self) -> &Id {
-        let (Command::ContentFinderCondition(args) | Command::Action(args) | Command::Status(args) | Command::Icon(args) | Command::JobActions(args)) = self;
-        &args.id
-    }
-
     /// Gets the name of the game sheet corresponding to this command.
     pub fn sheet(&self) -> &'static str {
         self.into()
@@ -46,11 +41,29 @@ impl Command {
 }
 
 #[derive(Args, Debug)]
-pub struct CommandArgs {
+pub struct SheetCommandArgs {
     /// The ID of the item that information should be retrieved about.
     /// Can also be a string to search for an item by name.
     #[clap(value_parser = parse_id)]
-    pub id: Id
+    pub id: Id,
+    /// Whether to pretty-print the result.
+    #[clap(short, long)]
+    pub pretty: bool
+}
+
+#[derive(Args, Debug)]
+pub struct JobActionsCommandArgs {
+    #[clap(flatten)]
+    pub base: SheetCommandArgs,
+    /// Prints an array of JSON objects containing each action's ID and name.
+    #[clap(short, long)]
+    pub names: bool
+}
+
+#[derive(Args, Debug)]
+pub struct IconArgs {
+    /// The ID of the item that information should be retrieved about.
+    pub id: u32
 }
 
 #[derive(Debug, Clone)]
