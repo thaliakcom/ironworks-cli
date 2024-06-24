@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use clio::ClioPath;
-use ironworks::{excel::Field, sestring::SeString};
+use ironworks::excel::Field;
 use ironworks_schema::{Node, Schema};
 use crate::err::{Err, ToUnknownErr};
 use super::sheets::{Column, LinkCondition, LinkSource, SHEET_COLUMNS};
@@ -21,6 +21,12 @@ pub fn extract(sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>, p
     Ok(())
 }
 
+struct SearchMatch {
+    id: u32,
+    name: Field,
+    field: Option<KeyValue>
+}
+
 /// Searches for a given string in the given sheet and prints a list of all matching row IDs
 /// to [`stdout`].
 ///
@@ -29,18 +35,28 @@ pub fn extract(sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>, p
 pub fn search(sheet_name: &'static str, search_str: &str, game_dir: &Option<ClioPath>) -> Result<(), Err> {
     let Init { schema, sheet, .. } = Init::new(sheet_name, game_dir)?;
     let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err()?;
-    let mut matches: Vec<(u32, SeString)> = Vec::new();
+    let mut matches: Vec<SearchMatch> = Vec::new();
 
     if let Node::Struct(columns) = schema.node {
+        let name_column_offset = columns.iter().find(|x| x.name == sheet_data.identifier).unwrap().offset as usize;
         let filtered_columns: Vec<_> = columns.iter().filter(|x| sheet_data.search_columns.contains(&x.name.as_ref())).collect();
 
         for row in sheet.iter() {
+            let name = row.field(name_column_offset).to_unknown_err()?;
+
             for column in filtered_columns.iter() {
                 let index = column.offset as usize;
-                let sestring = row.field(index).to_unknown_err()?.into_string().to_unknown_err()?;
+                let field = row.field(index).to_unknown_err()?;
+                let sestring = field.as_string().to_unknown_err()?;
 
                 if sestring.to_string().contains(search_str) {
-                    matches.push((row.row_id(), sestring));
+                    if name_column_offset == index {
+                        matches.push(SearchMatch { id: row.row_id(), name, field: None });
+                    } else {
+                        matches.push(SearchMatch { id: row.row_id(), name, field: Some(KeyValue { key: Cow::Owned(column.name.clone()), value: field }) });
+                    }
+
+                    break;
                 }
             }
         }
@@ -53,8 +69,17 @@ pub fn search(sheet_name: &'static str, search_str: &str, game_dir: &Option<Clio
     } else {
         println!("{} matches found:", matches.len());
 
-        for match_ in matches {
-            println!("  at {: >5}: {}", match_.0, match_.1);
+        for SearchMatch { id, name, field } in matches {
+            print!("  at {: >5}: ", id);
+            print_value(&name);
+
+            if let Some(key_value) = field {
+                print!(" -> {{ \"{}\": ", key_value.key);
+                print_value(&key_value.value);
+                print!(" }}");
+            }
+
+            println!();
         }
     }
 

@@ -56,6 +56,8 @@ pub enum LinkCondition {
 
 /// Data for a sheet.
 pub struct SheetData {
+    /// Name of the column that contains an identifier for the column.
+    pub identifier: &'static str,
     /// Which columns to add to the output.
     pub columns: &'static [Column],
     /// Whether data from another sheet should be added to the output.
@@ -66,6 +68,7 @@ pub struct SheetData {
 
 pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
     "Action" => SheetData {
+        identifier: "Name",
         columns: &[
             Column::AsIs("Name"),
             Column::AsIs("Icon"),
@@ -106,6 +109,7 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
         ]
     },
     "Status" => SheetData {
+        identifier: "Name",
         columns: &[
             Column::AsIs("Name"),
             Column::AsIs("Description"),
@@ -126,6 +130,7 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
         links: &[]
     },
     "ContentFinderCondition" => SheetData {
+        identifier: "Name",
         columns: &[
             Column::AsIs("TerritoryType"),
             Column::Alias("ClassJobLevel{Required}", "ClassJobLevelRequired"),
