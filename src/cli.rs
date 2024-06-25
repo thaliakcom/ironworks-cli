@@ -1,8 +1,8 @@
 use std::fmt::Display;
-
 use clap::{Args, Parser, Subcommand};
 use clio::ClioPath;
 use strum::IntoStaticStr;
+use crate::data::role_actions::Role;
 
 /// A command line utility that can extract data from FFXIV's internal Excel sheets.
 #[derive(Parser, Debug)]
@@ -28,6 +28,9 @@ pub enum Command {
     /// Prints an array of the numerical IDs of all job actions for a specific class or job.
     #[clap(name = "job-actions")]
     JobActions(JobActionsCommandArgs),
+    /// Prints an array of the numerical IDs of all role actions for a specific role.
+    #[clap(name = "role-actions")]
+    RoleActions(RoleActionsCommandArgs),
     /// Retrieves a specific icon and prints its binary data.
     #[clap(name = "icon")]
     Icon(IconArgs)
@@ -58,6 +61,18 @@ pub struct JobActionsCommandArgs {
     /// Prints an array of JSON objects containing each action's ID and name.
     #[clap(short, long)]
     pub names: bool
+}
+
+#[derive(Args, Debug)]
+pub struct RoleActionsCommandArgs {
+    #[clap(value_enum)]
+    pub role: Role,
+    /// Prints an array of JSON objects containing each action's ID and name.
+    #[clap(short, long)]
+    pub names: bool,
+    /// Whether to pretty-print the result.
+    #[clap(short, long)]
+    pub pretty: bool
 }
 
 #[derive(Args, Debug)]

@@ -10,6 +10,7 @@ pub enum Err {
     NoIndex(&'static str, &'static str),
     IconNotFound(String),
     JobNotFound(u32),
+    JobAcronymNotFound(String),
     UnsupportedIconFormat(u32, String),
     UnsupportedSheet(&'static str),
     Unknown
@@ -26,6 +27,7 @@ impl Display for Err {
             Self::NoIndex(sheet, column) => writeln!(f, "Column {}::{} cannot be coerced to a u32", sheet, column),
             Self::IconNotFound(path) => writeln!(f, "No icon found at path \"{}\"", path),
             Self::JobNotFound(job) => writeln!(f, "There is no class or job with ID \"{}\"", job),
+            Self::JobAcronymNotFound(job) => writeln!(f, "There is no class or job with abbreviation \"{}\"", job),
             Self::UnsupportedIconFormat(format, path) => writeln!(f, "Unsupported icon format {:#04x} at \"{}\"", format, path),
             Self::UnsupportedSheet(sheet) => writeln!(f, "Unsupported sheet type {}", sheet),
             Self::Unknown => writeln!(f, "An unknown error occurred")

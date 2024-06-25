@@ -2,7 +2,8 @@ use std::process::ExitCode;
 use crate::err::Err;
 
 use clap::Parser;
-use cli::{Cli, Command, IconArgs, Id, JobActionsCommandArgs, SheetCommandArgs};
+use cli::{Cli, Command, IconArgs, Id, JobActionsCommandArgs, RoleActionsCommandArgs, SheetCommandArgs};
+use data::job_actions;
 
 mod cli;
 mod data;
@@ -24,8 +25,9 @@ fn process(cli: Cli) -> Result<(), Err> {
     match cli.command {
         Command::Icon(IconArgs { id }) => data::icons::extract(id, &cli.game),
         Command::JobActions(JobActionsCommandArgs { base, names }) => {
-            data::job_actions::get(&base.id, &cli.game, names, base.pretty)
+            data::job_actions::get(&job_actions::Input::ClassJob(base.id), &cli.game, names, base.pretty)
         },
+        Command::RoleActions(RoleActionsCommandArgs { role, names, pretty }) => data::role_actions::get(role, &cli.game, names, pretty),
         Command::ContentFinderCondition(SheetCommandArgs { ref id, pretty })
       | Command::Action(SheetCommandArgs { ref id, pretty })
       | Command::Status(SheetCommandArgs { ref id, pretty }) => {

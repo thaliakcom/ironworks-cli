@@ -94,6 +94,7 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             Column::AsIs("MaxCharges"),
             Column::AsIs("AttackType"),
             Column::AsIs("Aspect"),
+            Column::AsIs("ClassJobCategory"),
             Column::AsIs("IsPlayerAction")
         ],
         search_columns: &[
