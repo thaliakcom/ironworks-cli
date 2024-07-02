@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{env::current_exe, sync::Arc};
 use clio::ClioPath;
 use ironworks::{excel::{Excel, Language, Sheet}, sqpack::{Install, Resource, SqPack}, Ironworks};
 use ironworks_schema::{saint_coinach::{Provider, Version}, Schema};
@@ -41,7 +41,8 @@ impl <'a> Init<'a> {
     }
 
     pub fn get_schema(sheet_name: &str, version: &str) -> Result<(ironworks_schema::Sheet, Version), Err> {
-        let provider = Provider::new().to_unknown_err()?;
+        let repository_directory = current_exe().ok().to_unknown_err()?.parent().to_unknown_err()?.join(format!("saint_coinach_{}", version));
+        let provider = Provider::with().directory(repository_directory).build().to_unknown_err()?;
         let version = provider.version("HEAD").map_err(|_| Err::VersionNotFound(version.to_owned()))?;
         let schema = version.sheet(sheet_name).to_unknown_err()?;
 
