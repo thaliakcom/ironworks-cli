@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{backtrace::Backtrace, fmt::Display};
 
 #[derive(Debug)]
 pub enum Err {
@@ -13,7 +13,7 @@ pub enum Err {
     JobAcronymNotFound(String),
     UnsupportedIconFormat(u32, String),
     UnsupportedSheet(&'static str),
-    Unknown
+    Unknown(Option<Backtrace>)
 }
 
 impl Display for Err {
@@ -30,7 +30,11 @@ impl Display for Err {
             Self::JobAcronymNotFound(job) => writeln!(f, "There is no class or job with abbreviation \"{}\"", job),
             Self::UnsupportedIconFormat(format, path) => writeln!(f, "Unsupported icon format {:#04x} at \"{}\"", format, path),
             Self::UnsupportedSheet(sheet) => writeln!(f, "Unsupported sheet type {}", sheet),
-            Self::Unknown => writeln!(f, "An unknown error occurred")
+            Self::Unknown(trace) => if let Some(trace) = trace {
+                writeln!(f, "An unknown error occurred at:\n{}", trace)
+            } else {
+                writeln!(f, "An unknown error occurred")
+            }
         }
     }
 }
@@ -42,13 +46,25 @@ pub trait ToUnknownErr<T> {
 impl <T, E> ToUnknownErr<T> for Result<T, E> {
     /// Converts the [`Result<T, E>`] into a `Result<T, Err::Unknown>`.
     fn to_unknown_err(self) -> Result<T, Err> {
-        self.map_err(|_| Err::Unknown)
+        self.map_err(|_| {
+            if cfg!(debug_assertions) {
+                Err::Unknown(Some(Backtrace::force_capture()))
+            } else {
+                Err::Unknown(None)
+            }
+        })
     }
 }
 
 impl <T> ToUnknownErr<T> for Option<T> {
     /// Converts the [`Option<T>`] into a `Result<T, Err::Unknown>`.
     fn to_unknown_err(self) -> Result<T, Err> {
-        self.ok_or(Err::Unknown)
+        self.ok_or_else(|| {
+            if cfg!(debug_assertions) {
+                Err::Unknown(Some(Backtrace::force_capture()))
+            } else {
+                Err::Unknown(None)
+            }
+        })
     }
 }
