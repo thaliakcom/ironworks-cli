@@ -167,7 +167,7 @@ mod tests {
         let mut non_matching_columns: Vec<String> = Vec::new();
 
         for (sheet_name, data) in SHEET_COLUMNS.entries() {
-            let (schema, ..) = Init::get_schema(sheet_name, "2024.03.27.0000.0000", true).unwrap();
+            let (schema, ..) = Init::get_schema(sheet_name, "2024.06.18.0000.0000", false).unwrap();
 
             if let Node::Struct(columns) = schema.node {
                 let column_names: Vec<_> = columns.iter().map(|x| x.name.to_owned()).collect();

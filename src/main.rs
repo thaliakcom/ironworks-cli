@@ -4,6 +4,8 @@ use crate::err::Err;
 use clap::Parser;
 use cli::{Cli, Command, IconArgs, Id, JobActionsCommandArgs, RoleActionsCommandArgs, SheetCommandArgs};
 use data::job_actions;
+use err::ToUnknownErr;
+use ironworks::sqpack::Resource;
 
 mod cli;
 mod data;
@@ -35,6 +37,13 @@ fn process(cli: Cli) -> Result<(), Err> {
                 Id::Name(name) => data::sheet_extractor::search(cli.command.sheet(), name, &cli),
                 Id::Index(index) => data::sheet_extractor::extract(cli.command.sheet(), *index, &cli, pretty),
             }
+        },
+        Command::Version => {
+            let game_res = data::Init::get_game_resource(&cli.game).to_unknown_err()?;
+            let version = game_res.version(0).to_unknown_err()?;
+            println!("{}", version);
+
+            Ok(())
         }
     }
 }

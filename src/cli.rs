@@ -42,7 +42,10 @@ pub enum Command {
     RoleActions(RoleActionsCommandArgs),
     /// Retrieves a specific icon and prints its binary data.
     #[clap(name = "icon")]
-    Icon(IconArgs)
+    Icon(IconArgs),
+    /// Prints the game's installed version.
+    #[clap(name = "version")]
+    Version
 }
 
 impl Command {
