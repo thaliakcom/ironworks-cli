@@ -1,5 +1,4 @@
-use clio::ClioPath;
-use crate::err::Err;
+use crate::{cli::Cli, err::Err};
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 #[clap(rename_all = "kebab_case")]
@@ -23,6 +22,6 @@ impl Role {
     }
 }
 
-pub fn get(role: Role, game_dir: &Option<ClioPath>, names: bool, pretty_print: bool) -> Result<(), Err> {
-    super::job_actions::get(&super::job_actions::Input::Role(role), game_dir, names, pretty_print)
+pub fn get(role: Role, args: &Cli, names: bool, pretty_print: bool) -> Result<(), Err> {
+    super::job_actions::get(&super::job_actions::Input::Role(role), args, names, pretty_print)
 }

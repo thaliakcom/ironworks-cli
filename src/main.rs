@@ -23,17 +23,17 @@ fn main() -> ExitCode {
 
 fn process(cli: Cli) -> Result<(), Err> {
     match cli.command {
-        Command::Icon(IconArgs { id }) => data::icons::extract(id, &cli.game),
-        Command::JobActions(JobActionsCommandArgs { base, names }) => {
-            data::job_actions::get(&job_actions::Input::ClassJob(base.id), &cli.game, names, base.pretty)
+        Command::Icon(IconArgs { id }) => data::icons::extract(id, &cli),
+        Command::JobActions(JobActionsCommandArgs { ref base, names }) => {
+            data::job_actions::get(&job_actions::Input::ClassJob(base.id.clone()), &cli, names, base.pretty)
         },
-        Command::RoleActions(RoleActionsCommandArgs { role, names, pretty }) => data::role_actions::get(role, &cli.game, names, pretty),
+        Command::RoleActions(RoleActionsCommandArgs { role, names, pretty }) => data::role_actions::get(role, &cli, names, pretty),
         Command::ContentFinderCondition(SheetCommandArgs { ref id, pretty })
       | Command::Action(SheetCommandArgs { ref id, pretty })
       | Command::Status(SheetCommandArgs { ref id, pretty }) => {
             match id {
-                Id::Name(name) => data::sheet_extractor::search(cli.command.sheet(), name, &cli.game),
-                Id::Index(index) => data::sheet_extractor::extract(cli.command.sheet(), *index, &cli.game, pretty),
+                Id::Name(name) => data::sheet_extractor::search(cli.command.sheet(), name, &cli),
+                Id::Index(index) => data::sheet_extractor::extract(cli.command.sheet(), *index, &cli, pretty),
             }
         }
     }

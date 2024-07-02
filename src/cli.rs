@@ -13,7 +13,16 @@ pub struct Cli {
     /// Path to the game's directory.
     /// If not specified, attempts to find the game directory automatically.
     #[clap(global = true, long, short, value_parser, default_value = "Option::None")]
-    pub game: Option<ClioPath>
+    pub game: Option<ClioPath>,
+    /// If set, the header data for the game files is forcibly updated from
+    /// an upstream source. This requires an internet connection.
+    /// 
+    /// Note that, by default, the header data is automatically updated
+    /// whenever the game is updated. However, in some cases after a game updated
+    /// you may accidentally run this program before the upstream data is updated,
+    /// in which case this flag is required to manually update the header data.
+    #[clap(global = true, long, short)]
+    pub refresh: bool
 }
 
 #[derive(Subcommand, Debug, IntoStaticStr)]

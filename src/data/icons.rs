@@ -1,15 +1,14 @@
 use std::io::stdout;
 
-use clio::ClioPath;
 use image::ImageEncoder;
 use ironworks::{file::tex::{self, Format, Texture}, sqpack::SqPack, Ironworks};
-use crate::err::{Err, ToUnknownErr};
+use crate::{cli::Cli, err::{Err, ToUnknownErr}};
 use super::Init;
 
 /// Extracts an icon from the game files by ID and prints
 /// it to [`stdout`] as a PNG.
-pub fn extract(id: u32, game_dir: &Option<ClioPath>) -> Result<(), Err> {
-    let game_resource = Init::get_game_resource(game_dir)?;
+pub fn extract(id: u32, args: &Cli) -> Result<(), Err> {
+    let game_resource = Init::get_game_resource(&args.game)?;
     let ironworks = Ironworks::new().with_resource(SqPack::new(game_resource));
     let icon_path = get_icon_path(id);
     let file = ironworks.file::<tex::Texture>(&icon_path).map_err(|_| Err::IconNotFound(icon_path.to_owned()))?;

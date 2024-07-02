@@ -1,7 +1,6 @@
-use clio::ClioPath;
 use ironworks::excel::{Excel, Field};
 use ironworks_schema::{saint_coinach::Version, Node, Schema};
-use crate::{cli::Id, data::sheet_extractor::print_value, err::{Err, ToUnknownErr}};
+use crate::{cli::{Cli, Id}, data::sheet_extractor::print_value, err::{Err, ToUnknownErr}};
 use super::{role_actions::Role, Init};
 
 const SHEET_NAME: &'static str = "Action";
@@ -15,8 +14,8 @@ pub enum Input {
 
 /// Gets all the job actions of a specific job by ID or acronym.
 /// Or: Gets all the role actions of a specific role.
-pub fn get(input: &Input, game_dir: &Option<ClioPath>, names: bool, pretty_print: bool) -> Result<(), Err> {
-    let init = Init::new(SHEET_NAME, game_dir)?;
+pub fn get(input: &Input, args: &Cli, names: bool, pretty_print: bool) -> Result<(), Err> {
+    let init = Init::new(SHEET_NAME, args)?;
     let mut matches: Vec<Field> = Vec::new();
 
     match input {

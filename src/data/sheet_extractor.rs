@@ -1,16 +1,15 @@
 use std::borrow::Cow;
-
-use clio::ClioPath;
 use ironworks::excel::Field;
 use ironworks_schema::{Node, Schema};
+use crate::cli::Cli;
 use crate::err::{Err, ToUnknownErr};
 use super::sheets::{Column, LinkCondition, LinkSource, SHEET_COLUMNS};
 use super::Init;
 
 /// Extracts a single row from the given sheet and prints a
 /// JSON representation of the result to [`stdout`].
-pub fn extract(sheet_name: &'static str, id: u32, game_dir: &Option<ClioPath>, pretty_print: bool) -> Result<(), Err> {
-    let values = get_values(sheet_name, id, game_dir)?;
+pub fn extract(sheet_name: &'static str, id: u32, args: &Cli, pretty_print: bool) -> Result<(), Err> {
+    let values = get_values(sheet_name, id, args)?;
 
     if pretty_print {
         pretty_print_values(values)?;
@@ -32,8 +31,8 @@ struct SearchMatch {
 ///
 /// Note that this function does not search through _all_ columns; instead
 /// only the columns specified in `sheets.rs` are searched.
-pub fn search(sheet_name: &'static str, search_str: &str, game_dir: &Option<ClioPath>) -> Result<(), Err> {
-    let Init { schema, sheet, .. } = Init::new(sheet_name, game_dir)?;
+pub fn search(sheet_name: &'static str, search_str: &str, args: &Cli) -> Result<(), Err> {
+    let Init { schema, sheet, .. } = Init::new(sheet_name, args)?;
     let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err()?;
     let mut matches: Vec<SearchMatch> = Vec::new();
 
@@ -96,8 +95,8 @@ struct KeyValue {
 ///
 /// Note that this function does not extract _all_ fields. Instead only
 /// the fields specified in `sheets.rs` are extracted.
-fn get_values(sheet_name: &'static str, row_id: u32, game_dir: &Option<ClioPath>) -> Result<Vec<KeyValue>, Err> {
-    let Init { excel, schema, sheet, version, .. } = Init::new(sheet_name, game_dir)?;
+fn get_values(sheet_name: &'static str, row_id: u32, args: &Cli) -> Result<Vec<KeyValue>, Err> {
+    let Init { excel, schema, sheet, version, .. } = Init::new(sheet_name, args)?;
     // For some reason calling `sheet.row()` on the Action sheet
     // takes longer than any other sheet by a magnitude of about 4x.
     // Since this is a bug in the dependency, we can't fix it.
