@@ -1,18 +1,16 @@
-use std::io::stdout;
-
 use image::ImageEncoder;
 use ironworks::{file::tex::{self, Format, Texture}, sqpack::SqPack, Ironworks};
-use crate::{cli::Cli, err::{Err, ToUnknownErr}};
-use super::Init;
+use crate::err::{Err, ToUnknownErr};
+use super::{Args, Init};
 
 /// Extracts an icon from the game files by ID and prints
 /// it to [`stdout`] as a PNG.
-pub fn extract(id: u32, args: &Cli) -> Result<(), Err> {
-    let game_resource = Init::get_game_resource(&args.game)?;
+pub fn extract(id: u32, args: &mut Args<impl std::io::Write>) -> Result<(), Err> {
+    let game_resource = Init::get_game_resource(&args.game_path.as_deref())?;
     let ironworks = Ironworks::new().with_resource(SqPack::new(game_resource));
     let icon_path = get_icon_path(id);
     let file = ironworks.file::<tex::Texture>(&icon_path).map_err(|_| Err::IconNotFound(icon_path.to_owned()))?;
-    print_png(&file, &icon_path)?;
+    write_png(&file, &icon_path, &mut args.out)?;
 
     Ok(())
 }
@@ -30,14 +28,14 @@ fn get_icon_path(id: u32) -> String {
     format!("ui/icon/{}000/{}_hr1.tex", &icon[0..3], icon)
 }
 
-fn print_png(file: &Texture, path: &str) -> Result<(), Err> {
+fn write_png(file: &Texture, path: &str, out: &mut impl std::io::Write) -> Result<(), Err> {
     let width = file.width() as u32;
     let height = file.height() as u32;
     let mut output: Vec<u8> = vec![0; (4 * width * height) as usize];
 
     file.decompress(path, &mut output)?;
 
-    let encoder = image::codecs::png::PngEncoder::new(stdout());
+    let encoder = image::codecs::png::PngEncoder::new(out);
     encoder.write_image(&output, width, height, image::ExtendedColorType::Rgba8).to_unknown_err()?;
 
     Ok(())

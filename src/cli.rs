@@ -1,8 +1,10 @@
 use std::fmt::Display;
+use std::io::{stdout, Stdout};
 use clap::{Args, Parser, Subcommand};
 use clio::ClioPath;
 use strum::IntoStaticStr;
-use crate::data::role_actions::Role;
+use ironworks_cli::data::role_actions::Role;
+use ironworks_cli::data::Id;
 
 /// A command line utility that can extract data from FFXIV's internal Excel sheets.
 #[derive(Parser, Debug)]
@@ -23,6 +25,26 @@ pub struct Cli {
     /// in which case this flag is required to manually update the header data.
     #[clap(global = true, long, short)]
     pub refresh: bool
+}
+
+impl From<Cli> for ironworks_cli::data::Args<Stdout> {
+    fn from(value: Cli) -> Self {
+        Self {
+            game_path: value.game.map(|x| x.to_path_buf()),
+            refresh: value.refresh,
+            out: stdout()
+        }
+    }
+}
+
+impl From<&Cli> for ironworks_cli::data::Args<Stdout> {
+    fn from(value: &Cli) -> Self {
+        Self {
+            game_path: value.game.as_ref().map(|x| x.to_path_buf()),
+            refresh: value.refresh,
+            out: stdout()
+        }
+    }
 }
 
 #[derive(Subcommand, Debug, IntoStaticStr)]
@@ -91,12 +113,6 @@ pub struct RoleActionsCommandArgs {
 pub struct IconArgs {
     /// The ID of the item that information should be retrieved about.
     pub id: u32
-}
-
-#[derive(Debug, Clone)]
-pub enum Id {
-    Name(String),
-    Index(u32)
 }
 
 #[derive(Debug)]

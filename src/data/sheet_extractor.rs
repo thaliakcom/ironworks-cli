@@ -1,20 +1,19 @@
 use std::borrow::Cow;
 use ironworks::excel::Field;
 use ironworks_schema::{Node, Schema};
-use crate::cli::Cli;
 use crate::err::{Err, ToUnknownErr};
 use super::sheets::{Column, LinkCondition, LinkSource, SHEET_COLUMNS};
-use super::Init;
+use super::{Args, Init};
 
 /// Extracts a single row from the given sheet and prints a
 /// JSON representation of the result to [`stdout`].
-pub fn extract(sheet_name: &'static str, id: u32, args: &Cli, pretty_print: bool) -> Result<(), Err> {
+pub fn extract(sheet_name: &'static str, id: u32, args: &mut Args<impl std::io::Write>, pretty_print: bool) -> Result<(), Err> {
     let values = get_values(sheet_name, id, args)?;
 
     if pretty_print {
-        pretty_print_values(values)?;
+        pretty_print_values(&mut args.out, values)?;
     } else {
-        print_values(values)?;
+        print_values(&mut args.out, values)?;
     }
 
     Ok(())
@@ -31,7 +30,7 @@ struct SearchMatch {
 ///
 /// Note that this function does not search through _all_ columns; instead
 /// only the columns specified in `sheets.rs` are searched.
-pub fn search(sheet_name: &'static str, search_str: &str, args: &Cli) -> Result<(), Err> {
+pub fn search(sheet_name: &'static str, search_str: &str, args: &mut Args<impl std::io::Write>) -> Result<(), Err> {
     let Init { schema, sheet, .. } = Init::new(sheet_name, args)?;
     let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err()?;
     let mut matches: Vec<SearchMatch> = Vec::new();
@@ -64,21 +63,21 @@ pub fn search(sheet_name: &'static str, search_str: &str, args: &Cli) -> Result<
     }
 
     if matches.is_empty() {
-        println!("No matches found");
+        writeln!(args.out, "No matches found").unwrap();
     } else {
-        println!("{} matches found:", matches.len());
+        writeln!(args.out, "{} matches found:", matches.len()).unwrap();
 
         for SearchMatch { id, name, field } in matches {
-            print!("  at {: >5}: ", id);
-            print_value(&name);
+            write!(args.out, "  at {: >5}: ", id).unwrap();
+            print_value(&mut args.out, &name);
 
             if let Some(key_value) = field {
-                print!(" -> {{ \"{}\": ", key_value.key);
-                print_value(&key_value.value);
-                print!(" }}");
+                write!(args.out, " -> {{ \"{}\": ", key_value.key).unwrap();
+                print_value(&mut args.out, &key_value.value);
+                write!(args.out, " }}").unwrap();
             }
 
-            println!();
+            writeln!(args.out, ).unwrap();
         }
     }
 
@@ -95,7 +94,7 @@ struct KeyValue {
 ///
 /// Note that this function does not extract _all_ fields. Instead only
 /// the fields specified in `sheets.rs` are extracted.
-fn get_values(sheet_name: &'static str, row_id: u32, args: &Cli) -> Result<Vec<KeyValue>, Err> {
+fn get_values(sheet_name: &'static str, row_id: u32, args: &mut Args<impl std::io::Write>) -> Result<Vec<KeyValue>, Err> {
     let Init { excel, schema, sheet, version, .. } = Init::new(sheet_name, args)?;
     // For some reason calling `sheet.row()` on the Action sheet
     // takes longer than any other sheet by a magnitude of about 4x.
@@ -156,56 +155,56 @@ fn get_values(sheet_name: &'static str, row_id: u32, args: &Cli) -> Result<Vec<K
 }
 
 /// Prints the list of named values to [`stdout`] in JSON format.
-fn print_values(values: Vec<KeyValue>) -> Result<(), Err> {
-    print!("{{");
+fn print_values(out: &mut impl std::io::Write, values: Vec<KeyValue>) -> Result<(), Err> {
+    write!(out, "{{").unwrap();
     let len = values.len();
 
     for (i, field) in values.into_iter().enumerate() {
-        print!("\"{}{}\":", &field.key.chars().nth(0).unwrap().to_lowercase(), &field.key[1..]);
-        print_value(&field.value);
+        write!(out, "\"{}{}\":", &field.key.chars().next().unwrap().to_lowercase(), &field.key[1..]).unwrap();
+        print_value(out, &field.value);
 
         if i < len - 1 {
-            print!(",");
+            write!(out, ",").unwrap();
         }
     }
-    println!("}}");
+    writeln!(out, "}}").unwrap();
 
     Ok(())
 }
 
 /// Prints the list of named values to [`stdout`] in JSON format.
-fn pretty_print_values(values: Vec<KeyValue>) -> Result<(), Err> {
-    println!("{{");
+fn pretty_print_values(out: &mut impl std::io::Write, values: Vec<KeyValue>) -> Result<(), Err> {
+    writeln!(out, "{{").unwrap();
     let len = values.len();
 
     for (i, field) in values.into_iter().enumerate() {
-        print!("  \"{}{}\": ", &field.key.chars().nth(0).unwrap().to_lowercase(), &field.key[1..]);
-        print_value(&field.value);
+        write!(out, "  \"{}{}\": ", &field.key.chars().next().unwrap().to_lowercase(), &field.key[1..]).unwrap();
+        print_value(out, &field.value);
 
         if i < len - 1 {
-            print!(",\n");
+            writeln!(out, ",").unwrap();
         }
     }
-    println!("\n}}");
+    writeln!(out, "\n}}").unwrap();
 
     Ok(())
 }
 
 /// Prints the value contained in the field to [`stdout`].
-pub fn print_value(field: &Field) {
+pub fn print_value(out: &mut impl std::io::Write, field: &Field) {
     match field {
-        Field::String(s) => print!("\"{}\"", s.to_string().replace("\n", "\\n").replace("\"", "\\\"")),
-        Field::Bool(b) => print!("{}", b),
-        Field::I8(num) => print!("{}", num),
-        Field::I16(num) => print!("{}", num),
-        Field::I32(num) => print!("{}", num),
-        Field::I64(num) => print!("{}", num),
-        Field::U8(num) => print!("{}", num),
-        Field::U16(num) => print!("{}", num),
-        Field::U32(num) => print!("{}", num),
-        Field::U64(num) => print!("{}", num),
-        Field::F32(num) => print!("{}", num)
-    }
+        Field::String(s) => write!(out, "\"{}\"", s.to_string().replace('\n', "\\n").replace('"', "\\\"")),
+        Field::Bool(b) => write!(out, "{}", b),
+        Field::I8(num) => write!(out, "{}", num),
+        Field::I16(num) => write!(out, "{}", num),
+        Field::I32(num) => write!(out, "{}", num),
+        Field::I64(num) => write!(out, "{}", num),
+        Field::U8(num) => write!(out, "{}", num),
+        Field::U16(num) => write!(out, "{}", num),
+        Field::U32(num) => write!(out, "{}", num),
+        Field::U64(num) => write!(out, "{}", num),
+        Field::F32(num) => write!(out, "{}", num)
+    }.unwrap();
 }
 
 /// Attempts to convert the value contained in the field to [`u32`].

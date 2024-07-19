@@ -1,4 +1,5 @@
-use crate::{cli::Cli, err::Err};
+use crate::err::Err;
+use super::Args;
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 #[clap(rename_all = "kebab_case")]
@@ -22,6 +23,6 @@ impl Role {
     }
 }
 
-pub fn get(role: Role, args: &Cli, names: bool, pretty_print: bool) -> Result<(), Err> {
+pub fn get(role: Role, args: &mut Args<impl std::io::Write>, names: bool, pretty_print: bool) -> Result<(), Err> {
     super::job_actions::get(&super::job_actions::Input::Role(role), args, names, pretty_print)
 }

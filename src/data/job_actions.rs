@@ -1,10 +1,10 @@
 use ironworks::excel::{Excel, Field};
 use ironworks_schema::{saint_coinach::Version, Node, Schema};
-use crate::{cli::{Cli, Id}, data::sheet_extractor::print_value, err::{Err, ToUnknownErr}};
-use super::{role_actions::Role, Init};
+use crate::{data::sheet_extractor::print_value, err::{Err, ToUnknownErr}};
+use super::{role_actions::Role, Args, Id, Init};
 
-const SHEET_NAME: &'static str = "Action";
-const CLASS_JOB_SHEET_NAME: &'static str = "ClassJob";
+const SHEET_NAME: &str = "Action";
+const CLASS_JOB_SHEET_NAME: &str = "ClassJob";
 
 #[derive(Debug)]
 pub enum Input {
@@ -14,7 +14,7 @@ pub enum Input {
 
 /// Gets all the job actions of a specific job by ID or acronym.
 /// Or: Gets all the role actions of a specific role.
-pub fn get(input: &Input, args: &Cli, names: bool, pretty_print: bool) -> Result<(), Err> {
+pub fn get(input: &Input, args: &mut Args<impl std::io::Write>, names: bool, pretty_print: bool) -> Result<(), Err> {
     let init = Init::new(SHEET_NAME, args)?;
     let mut matches: Vec<Field> = Vec::new();
 
@@ -24,9 +24,9 @@ pub fn get(input: &Input, args: &Cli, names: bool, pretty_print: bool) -> Result
     }?;
 
     if pretty_print {
-        pretty_print_values(matches, names)
+        pretty_print_values(matches, names, &mut args.out)
     } else {
-        print_values(matches, names);
+        print_values(matches, names, &mut args.out);
     }
 
     Ok(())
@@ -74,7 +74,7 @@ fn get_role_actions(role: Role, init: Init, matches: &mut Vec<Field>, names: boo
     Ok(())
 }
 
-fn get_class_id<'a>(id: &Id, excel: Excel<'a>, version: Version) -> Result<(u8, u8), Err> {
+fn get_class_id(id: &Id, excel: Excel<'_>, version: Version) -> Result<(u8, u8), Err> {
     let class_jobs = excel.sheet(CLASS_JOB_SHEET_NAME).to_unknown_err()?;
     let schema = version.sheet(CLASS_JOB_SHEET_NAME).to_unknown_err()?;
     
@@ -92,63 +92,63 @@ fn get_class_id<'a>(id: &Id, excel: Excel<'a>, version: Version) -> Result<(u8, 
 
         Ok((class_id as u8, class_job.field(base_class_column).to_unknown_err()?.into_u8().to_unknown_err()?))
     } else {
-        return Err(Err::UnsupportedSheet(SHEET_NAME));
+        Err(Err::UnsupportedSheet(SHEET_NAME))
     }
 }
 
-fn print_values(matches: Vec<Field>, names: bool) {
-    print!("[");
+fn print_values(matches: Vec<Field>, names: bool, out: &mut impl std::io::Write) {
+    write!(out, "[").unwrap();
 
     if names {
         for (i, m) in matches.chunks_exact(2).enumerate() {
             if i != 0 {
-                print!(",");
+                write!(out, ",").unwrap();
             }
 
-            print!("{{\"id\":");
-            print_value(&m[0]);
-            print!(",\"name\":");
-            print_value(&m[1]);
-            print!("}}");
+            write!(out, "{{\"id\":").unwrap();
+            print_value(out, &m[0]);
+            write!(out, ",\"name\":").unwrap();
+            print_value(out, &m[1]);
+            write!(out, "}}").unwrap();
         }
     } else {
         for (i, index) in matches.iter().enumerate() {
             if i != 0 {
-                print!(",");
+                write!(out, ",").unwrap();
             }
 
-            print_value(index);
+            print_value(out, index);
         }
     }
 
-    println!("]");
+    writeln!(out, "]").unwrap();
 }
 
-fn pretty_print_values(matches: Vec<Field>, names: bool) {
-    println!("[");
+fn pretty_print_values(matches: Vec<Field>, names: bool, out: &mut impl std::io::Write) {
+    writeln!(out, "[").unwrap();
 
     if names {
         for (i, m) in matches.chunks_exact(2).enumerate() {
             if i != 0 {
-                println!(",");
+                writeln!(out, ",").unwrap();
             }
 
-            print!("  {{ \"id\": ");
-            print_value(&m[0]);
-            print!(", \"name\": ");
-            print_value(&m[1]);
-            print!(" }}");
+            write!(out, "  {{ \"id\": ").unwrap();
+            print_value(out, &m[0]);
+            write!(out, ", \"name\": ").unwrap();
+            print_value(out, &m[1]);
+            write!(out, " }}").unwrap();
         }
     } else {
         for (i, index) in matches.iter().enumerate() {
             if i != 0 {
-                println!(",");
+                writeln!(out, ",").unwrap();
             }
 
-            print!("  ");
-            print_value(index);
+            write!(out, "  ").unwrap();
+            print_value(out, index);
         }
     }
 
-    println!("\n]");
+    writeln!(out, "\n]").unwrap();
 }

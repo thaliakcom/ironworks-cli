@@ -1,8 +1,9 @@
-use std::{env::current_exe, fs, sync::Arc};
-use clio::ClioPath;
+use std::{env::current_exe, fs, path::Path, sync::Arc};
 use ironworks::{excel::{Excel, Language, Sheet}, sqpack::{Install, Resource, SqPack}, Ironworks};
 use ironworks_schema::{saint_coinach::{Provider, Version}, Schema};
-use crate::{cli::Cli, err::{Err, ToUnknownErr}};
+use crate::err::{Err, ToUnknownErr};
+
+use super::Args;
 
 pub struct Init<'a> {
     pub excel: Excel<'a>,
@@ -12,8 +13,8 @@ pub struct Init<'a> {
 }
 
 impl <'a> Init<'a> {
-    pub fn new(sheet_name: &'static str, args: &Cli) -> Result<Self, Err> {
-        let game_resource = Self::get_game_resource(&args.game)?;
+    pub fn new(sheet_name: &'static str, args: &Args<impl std::io::Write>) -> Result<Self, Err> {
+        let game_resource = Self::get_game_resource(&args.game_path.as_deref())?;
         let version = game_resource.version(0).unwrap();
     
         let ironworks = Arc::new(Ironworks::new().with_resource(SqPack::new(game_resource)));
@@ -25,9 +26,9 @@ impl <'a> Init<'a> {
         Ok(Self { excel, sheet, schema, version })
     }
 
-    pub fn get_game_resource(game_dir: &Option<ClioPath>) -> Result<Install, Err> {
+    pub fn get_game_resource(game_dir: &Option<&Path>) -> Result<Install, Err> {
         let game_resource = if let Some(game_dir) = game_dir {
-            Some(Install::at(game_dir.path()))
+            Some(Install::at(game_dir))
         } else {
             Install::search()
         }.ok_or(Err::GameNotFound)?;
