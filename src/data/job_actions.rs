@@ -38,7 +38,7 @@ fn get_job_actions(id: &Id, init: Init, matches: &mut Vec<Field>, names: bool) -
     let class_job_column = columns.iter().find(|x| x.name == CLASS_JOB_SHEET_NAME).to_unknown_err()?.offset as usize;
     let name_column = if names { columns.iter().find(|x| x.name == "Name").to_unknown_err()?.offset as usize } else { 0 };
 
-    for row in init.sheet.iter() {
+    for row in init.sheet.into_iter() {
         let class_job_id = row.field(class_job_column).to_unknown_err()?.into_i8().to_unknown_err()?;
 
         if class_job_id == class_id as i8 || class_job_id == base_class_id as i8 {
@@ -59,7 +59,7 @@ fn get_role_actions(role: Role, init: Init, matches: &mut Vec<Field>, names: boo
     let class_job_column = columns.iter().find(|x| x.name == "ClassJobCategory").to_unknown_err()?.offset as usize;
     let name_column = if names { columns.iter().find(|x| x.name == "Name").to_unknown_err()?.offset as usize } else { 0 };
 
-    for row in init.sheet.iter() {
+    for row in init.sheet.into_iter() {
         let class_job_id = row.field(class_job_column).to_unknown_err()?.into_u8().to_unknown_err()?;
 
         if categories.contains(&class_job_id) {
@@ -74,7 +74,7 @@ fn get_role_actions(role: Role, init: Init, matches: &mut Vec<Field>, names: boo
     Ok(())
 }
 
-fn get_class_id(id: &Id, excel: Excel<'_>, version: Version) -> Result<(u8, u8), Err> {
+fn get_class_id(id: &Id, excel: Excel, version: Version) -> Result<(u8, u8), Err> {
     let class_jobs = excel.sheet(CLASS_JOB_SHEET_NAME).to_unknown_err()?;
     let schema = version.sheet(CLASS_JOB_SHEET_NAME).to_unknown_err()?;
     
@@ -83,12 +83,12 @@ fn get_class_id(id: &Id, excel: Excel<'_>, version: Version) -> Result<(u8, u8),
             Id::Index(id) => *id,
             Id::Name(abbreviation) => {
                 let abbreviation_column = columns.iter().find(|x| x.name == "Abbreviation").to_unknown_err()?.offset as usize;
-                class_jobs.iter().find(|x| &x.field(abbreviation_column).unwrap().into_string().unwrap().to_string() == abbreviation).ok_or_else(|| Err::JobAcronymNotFound(abbreviation.clone()))?.row_id()
+                class_jobs.into_iter().find(|x| &x.field(abbreviation_column).unwrap().into_string().unwrap().to_string() == abbreviation).ok_or_else(|| Err::JobAcronymNotFound(abbreviation.clone()))?.row_id()
             }
         };
 
         let base_class_column = columns.iter().find(|x| x.name == "ClassJob{Parent}").to_unknown_err()?.offset as usize;
-        let class_job = class_jobs.row(class_id).map_err(|_| Err::JobNotFound(class_id))?;
+        let class_job = excel.sheet(CLASS_JOB_SHEET_NAME).to_unknown_err()?.row(class_id).map_err(|_| Err::JobNotFound(class_id))?;
 
         Ok((class_id as u8, class_job.field(base_class_column).to_unknown_err()?.into_u8().to_unknown_err()?))
     } else {

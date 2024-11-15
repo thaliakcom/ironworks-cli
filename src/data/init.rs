@@ -6,8 +6,8 @@ use crate::err::{Err, ToUnknownErr};
 use super::Args;
 
 pub struct Init<'a> {
-    pub excel: Excel<'a>,
-    pub sheet: Sheet<'a, &'a str>,
+    pub excel: Excel,
+    pub sheet: Sheet<&'a str>,
     pub version: Version,
     pub schema: ironworks_schema::Sheet
 }
@@ -18,7 +18,7 @@ impl <'a> Init<'a> {
         let version = game_resource.version(0).unwrap();
     
         let ironworks = Arc::new(Ironworks::new().with_resource(SqPack::new(game_resource)));
-        let excel = Excel::with().language(Language::English).build(ironworks);
+        let excel = Excel::new(ironworks).with_default_language(Language::English);
         let sheet = excel.sheet(sheet_name).map_err(|_| Err::SheetNotFound(sheet_name))?;
     
         let (schema, version) = Self::get_schema(sheet_name, &version, args.refresh)?;

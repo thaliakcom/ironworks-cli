@@ -8,8 +8,8 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }
 clio = { version = "0.3.5", features = ["clap-parse"] }
-ironworks = { git = "https://github.com/ackwell/ironworks", features = ["excel", "sqpack", "tex"], rev = "931a5190a0734d26cecf9fc37cdb8e56d5fb3ffd" }
-ironworks_schema = { git = "https://github.com/ackwell/ironworks", features = ["saint_coinach", "exdschema"], rev = "931a5190a0734d26cecf9fc37cdb8e56d5fb3ffd" }
+ironworks = { git = "https://github.com/ackwell/ironworks", features = ["excel", "sqpack", "tex"], rev = "7591e21" }
+ironworks_schema = { git = "https://github.com/ackwell/ironworks", features = ["saint_coinach", "exdschema"], rev = "7591e21" }
 phf = { version = "0.11", default-features = false, features = ["macros"] }
 strum = "0.26"
 strum_macros = "0.26"

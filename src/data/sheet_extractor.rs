@@ -39,7 +39,7 @@ pub fn search(sheet_name: &'static str, search_str: &str, args: &mut Args<impl s
         let name_column_offset = columns.iter().find(|x| x.name == sheet_data.identifier).unwrap().offset as usize;
         let filtered_columns: Vec<_> = columns.iter().filter(|x| sheet_data.search_columns.contains(&x.name.as_ref())).collect();
 
-        for row in sheet.iter() {
+        for row in sheet.into_iter() {
             let name = row.field(name_column_offset).to_unknown_err()?;
 
             for column in filtered_columns.iter() {
