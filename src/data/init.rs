@@ -1,6 +1,6 @@
 use std::{env::current_exe, fs, path::Path, sync::Arc};
 use ironworks::{excel::{Excel, Language, Sheet}, sqpack::{Install, Resource, SqPack}, Ironworks};
-use ironworks_schema::{saint_coinach::{Provider, Version}, Schema};
+use ironworks_schema::{exdschema::{Provider, Version}, Schema};
 use crate::err::{Err, ToUnknownErr};
 
 use super::Args;
@@ -42,14 +42,15 @@ impl <'a> Init<'a> {
     }
 
     pub fn get_schema(sheet_name: &str, version: &str, refresh: bool) -> Result<(ironworks_schema::Sheet, Version), Err> {
-        let repository_directory = current_exe().ok().to_unknown_err()?.parent().to_unknown_err()?.join(format!("saint_coinach_{}", version));
+        let repository_directory = current_exe().ok().to_unknown_err()?.parent().to_unknown_err()?.join(format!("exdschema_{}", version));
 
         if refresh && repository_directory.exists() {
             fs::remove_dir_all(&repository_directory).to_unknown_err()?;
         }
 
         let provider = Provider::with().directory(repository_directory).build().to_unknown_err()?;
-        let version = provider.version("HEAD").map_err(|_| Err::VersionNotFound(version.to_owned()))?;
+        let specifier = provider.specifier("HEAD", version).to_unknown_err()?;
+        let version = provider.version(specifier).map_err(|_| Err::VersionNotFound(version.to_owned()))?;
         let schema = version.sheet(sheet_name).to_unknown_err()?;
 
         Ok((schema, version))

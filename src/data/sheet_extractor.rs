@@ -1,8 +1,9 @@
 use std::borrow::Cow;
-use ironworks::excel::Field;
-use ironworks_schema::{Node, Schema};
+use ironworks::excel::{Field, Sheet};
+use ironworks::file::exh::ColumnDefinition;
+use ironworks_schema::{Node, Order, Schema};
 use crate::err::{Err, ToUnknownErr};
-use super::sheets::{Column, LinkCondition, LinkSource, SHEET_COLUMNS};
+use super::sheets::{LinkCondition, LinkSource, SHEET_COLUMNS};
 use super::{Args, Init};
 
 /// Extracts a single row from the given sheet and prints a
@@ -33,33 +34,29 @@ struct SearchMatch {
 pub fn search(sheet_name: &'static str, search_str: &str, args: &mut Args<impl std::io::Write>) -> Result<(), Err> {
     let Init { schema, sheet, .. } = Init::new(sheet_name, args)?;
     let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err()?;
+
     let mut matches: Vec<SearchMatch> = Vec::new();
+    let filtered_columns: Vec<SheetColumn> = filtered_column_iter(&sheet, schema, Some(sheet_data.columns))?.collect();
+    let name_column = filtered_columns.iter().find(|x| &x.name == sheet_data.identifier).to_unknown_err()?;
+    let search_columns: Vec<_> = filtered_columns.iter().filter(|x| sheet_data.search_columns.contains(&x.name.as_ref())).collect();
 
-    if let Node::Struct(columns) = schema.node {
-        let name_column_offset = columns.iter().find(|x| x.name == sheet_data.identifier).unwrap().offset as usize;
-        let filtered_columns: Vec<_> = columns.iter().filter(|x| sheet_data.search_columns.contains(&x.name.as_ref())).collect();
+    for row in sheet.into_iter() {
+        let name = row.field(&name_column.column).to_unknown_err()?;
 
-        for row in sheet.into_iter() {
-            let name = row.field(name_column_offset).to_unknown_err()?;
+        for column in search_columns.iter() {
+            let field = row.field(&column.column).to_unknown_err()?;
+            let sestring = field.as_string().to_unknown_err()?;
 
-            for column in filtered_columns.iter() {
-                let index = column.offset as usize;
-                let field = row.field(index).to_unknown_err()?;
-                let sestring = field.as_string().to_unknown_err()?;
-
-                if sestring.to_string().contains(search_str) {
-                    if name_column_offset == index {
-                        matches.push(SearchMatch { id: row.row_id(), name, field: None });
-                    } else {
-                        matches.push(SearchMatch { id: row.row_id(), name, field: Some(KeyValue { key: Cow::Owned(column.name.clone()), value: field }) });
-                    }
-
-                    break;
+            if sestring.to_string().contains(search_str) {
+                if column.name == name_column.name {
+                    matches.push(SearchMatch { id: row.row_id(), name, field: None });
+                } else {
+                    matches.push(SearchMatch { id: row.row_id(), name, field: Some(KeyValue { key: Cow::Owned(column.name.clone()), value: field }) });
                 }
+
+                break;
             }
         }
-    } else {
-        return Err(Err::UnsupportedSheet(sheet_name));
     }
 
     if matches.is_empty() {
@@ -89,6 +86,35 @@ struct KeyValue {
     value: Field
 }
 
+pub struct SheetColumn {
+    pub name: String,
+    pub column: ColumnDefinition
+}
+
+pub fn column_iter(sheet: &Sheet<&str>, schema: ironworks_schema::Sheet) -> Result<impl Iterator<Item = SheetColumn>, Err> {
+    filtered_column_iter(sheet, schema, None)
+}
+
+pub fn filtered_column_iter(sheet: &Sheet<&str>, schema: ironworks_schema::Sheet, filter_columns: Option<&'static [&'static str]>) -> Result<impl Iterator<Item = SheetColumn>, Err> {
+    let mut columns = sheet.columns().map_err(|_| Err::UnsupportedSheet(Cow::Owned(sheet.name())))?;
+    let fields = if let Node::Struct(columns) = schema.node { columns } else { Err(Err::UnsupportedSheet(Cow::Owned(sheet.name())))? };
+
+    match schema.order {
+        Order::Index => (),
+        Order::Offset => columns.sort_by_key(|column| column.offset()),
+    };
+
+    Ok(fields.into_iter()
+        .filter(move |x| {
+            if let Some(filter_columns) = filter_columns {
+                filter_columns.contains(&x.name.as_ref())
+            } else {
+                true
+            }
+        })
+        .map(move |x| SheetColumn { name: x.name, column: columns[x.offset as usize].clone() }))
+}
+
 /// Gets a [`Vec`] of the field values and their field names
 /// from the given row in the given sheet.
 ///
@@ -101,57 +127,43 @@ fn get_values(sheet_name: &'static str, row_id: u32, args: &mut Args<impl std::i
     // Since this is a bug in the dependency, we can't fix it.
     let row = sheet.row(row_id).map_err(|_| Err::RowNotFound(sheet_name, row_id))?;
     let sheet_data = SHEET_COLUMNS.get(sheet_name);
+    let filtered_columns: Vec<SheetColumn> = filtered_column_iter(&sheet, schema, sheet_data.map(|x| x.columns))?.collect();
 
-    if let Node::Struct(columns) = schema.node {
-        let mut result: Vec<KeyValue> = columns.iter()
-            .filter_map(|column| {
-                if let Some(data) = sheet_data {
-                    data.columns.iter().find(|x| x.name() == column.name).map(|matching_column| match matching_column {
-                            Column::AsIs(name) => KeyValue { key: Cow::Borrowed(name), value: row.field(column.offset as usize).unwrap() },
-                            Column::Alias(_, alias) => KeyValue { key: Cow::Borrowed(alias), value: row.field(column.offset as usize).unwrap() }
-                        })
-                } else {
-                    Some(KeyValue { key: Cow::Owned(column.name.to_owned()), value: row.field(column.offset as usize).unwrap() })
-                }
-            })
-            .collect();
-    
-        if let Some(data) = sheet_data {
-            for link in data.links {
-                if match link.condition {
-                    LinkCondition::Always => false,
-                    LinkCondition::IfNot(condition_col, ref condition_val) => compare_fields(&row.field(columns.iter().find(|x| x.name == condition_col).unwrap().offset as usize).unwrap(), condition_val)
-                } {
-                    continue;
-                }
+    let mut result: Vec<KeyValue> = filtered_columns.iter()
+        .map(|column| KeyValue { key: Cow::Owned(column.name.to_owned()), value: row.field(&column.column).unwrap() })
+        .collect();
 
-                let linked_sheet = excel.sheet(link.sheet).map_err(|_| Err::SheetNotFound(link.sheet))?;
-                let linked_row_id = if let LinkSource::Field(column_name) = link.source {
-                    let column = columns.iter().find(|x| x.name == column_name).ok_or(Err::ColumnNotFound(sheet_name, column_name))?;
-                    get_u32(row.field(column.offset as usize).to_unknown_err()?).ok_or(Err::NoIndex(sheet_name, column_name))?
-                } else {
-                    row_id
-                };
+    if let Some(data) = sheet_data {
+        for link in data.links {
+            if match link.condition {
+                LinkCondition::Always => false,
+                LinkCondition::IfNot(condition_col, ref condition_val) => compare_fields(&result.iter().find(|x| &x.key == condition_col).to_unknown_err()?.value, condition_val)
+            } {
+                continue;
+            }
 
-                let linked_row = linked_sheet.row(linked_row_id).map_err(|_| Err::RowNotFound(link.sheet, linked_row_id))?;
-                let linked_schema = version.sheet(link.sheet).to_unknown_err()?;
-                let linked_columns = if let Node::Struct(columns) = linked_schema.node { Ok(columns) } else { Err(Err::UnsupportedSheet(link.sheet)) }?;
-                let column_data = linked_columns.into_iter().filter_map(|column| {
-                    let link_data = link.columns.iter().find(|x| x.source == column.name)?;
+            let linked_sheet = excel.sheet(link.sheet).map_err(|_| Err::SheetNotFound(link.sheet))?;
+            let linked_row_id = if let LinkSource::Field(column_name) = link.source {
+                let value = &result.iter().find(|x| &x.key == column_name).ok_or(Err::ColumnNotFound(sheet_name, column_name))?.value;
+                get_u32(value).ok_or(Err::NoIndex(sheet_name, column_name))?
+            } else {
+                row_id
+            };
 
-                    Some((link_data, column.offset))
-                });
+            let linked_row = linked_sheet.row(linked_row_id).map_err(|_| Err::RowNotFound(link.sheet, linked_row_id))?;
+            let linked_schema = version.sheet(link.sheet).to_unknown_err()?;
 
-                for (link_data, offset) in column_data {
-                    result.push(KeyValue { key: Cow::Borrowed(link_data.target), value: linked_row.field(offset as usize).to_unknown_err()? });
+            for column in column_iter(&linked_sheet, linked_schema)? {
+                let link_data = link.columns.iter().find(|x| x.source == column.name);
+
+                if let Some(link_data) = link_data {
+                    result.push(KeyValue { key: Cow::Borrowed(link_data.target), value: linked_row.field(&column.column).to_unknown_err()? });
                 }
             }
         }
-    
-        Ok(result)
-    } else {
-        Err(Err::UnsupportedSheet(sheet_name))
     }
+
+    Ok(result)
 }
 
 /// Prints the list of named values to [`stdout`] in JSON format.
@@ -208,17 +220,17 @@ pub fn print_value(out: &mut impl std::io::Write, field: &Field) {
 }
 
 /// Attempts to convert the value contained in the field to [`u32`].
-fn get_u32(field: Field) -> Option<u32> {
+fn get_u32(field: &Field) -> Option<u32> {
     match field {
-        Field::I8(num) => Some(num as u32),
-        Field::I16(num) => Some(num as u32),
-        Field::I32(num) => Some(num as u32),
-        Field::I64(num) => Some(num as u32),
-        Field::U8(num) => Some(num as u32),
-        Field::U16(num) => Some(num as u32),
-        Field::U32(num) => Some(num),
-        Field::U64(num) => Some(num as u32),
-        Field::F32(num) => Some(num as u32),
+        Field::I8(num) => Some(*num as u32),
+        Field::I16(num) => Some(*num as u32),
+        Field::I32(num) => Some(*num as u32),
+        Field::I64(num) => Some(*num as u32),
+        Field::U8(num) => Some(*num as u32),
+        Field::U16(num) => Some(*num as u32),
+        Field::U32(num) => Some(*num),
+        Field::U64(num) => Some(*num as u32),
+        Field::F32(num) => Some(*num as u32),
         _ => None
     }
 }

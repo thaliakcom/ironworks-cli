@@ -1,4 +1,4 @@
-use std::{backtrace::Backtrace, fmt::Display};
+use std::{backtrace::Backtrace, borrow::Cow, fmt::Display};
 
 #[derive(Debug)]
 pub enum Err {
@@ -12,7 +12,7 @@ pub enum Err {
     JobNotFound(u32),
     JobAcronymNotFound(String),
     UnsupportedIconFormat(u32, String),
-    UnsupportedSheet(&'static str),
+    UnsupportedSheet(Cow<'static, str>),
     Unknown(Option<Backtrace>)
 }
 

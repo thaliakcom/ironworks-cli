@@ -12,20 +12,6 @@ pub enum LinkSource {
     Field(&'static str)
 }
 
-pub enum Column {
-    AsIs(&'static str),
-    Alias(&'static str, &'static str)
-}
-
-impl Column {
-    pub fn name(&self) -> &str {
-        match self {
-            Column::AsIs(s) => s,
-            Column::Alias(s, ..) => s
-        }
-    }
-}
-
 /// Represents which columns in the linked sheet are used.
 pub struct SheetLinkColumn {
     /// The name of a column in the target sheet to print.
@@ -59,7 +45,7 @@ pub struct SheetData {
     /// Name of the column that contains an identifier for the column.
     pub identifier: &'static str,
     /// Which columns to add to the output.
-    pub columns: &'static [Column],
+    pub columns: &'static [&'static str],
     /// Whether data from another sheet should be added to the output.
     pub links: &'static [SheetLink],
     /// Which columns to search in.
@@ -70,32 +56,32 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
     "Action" => SheetData {
         identifier: "Name",
         columns: &[
-            Column::AsIs("Name"),
-            Column::AsIs("Icon"),
-            Column::AsIs("ActionCategory"),
-            Column::AsIs("ClassJob"),
-            Column::AsIs("ClassJobLevel"),
-            Column::AsIs("IsRoleAction"),
-            Column::AsIs("CanTargetSelf"),
-            Column::AsIs("CanTargetParty"),
-            Column::AsIs("CanTargetFriendly"),
-            Column::AsIs("CanTargetHostile"),
-            Column::AsIs("CanTargetDead"),
-            Column::AsIs("TargetArea"),
-            Column::AsIs("CastType"),
-            Column::AsIs("BehaviourType"),
-            Column::AsIs("Range"),
-            Column::AsIs("EffectRange"),
-            Column::Alias("Action{Combo}", "ActionCombo"),
-            Column::AsIs("PreservesCombo"),
-            Column::Alias("Cast<100ms>", "Cast100ms"),
-            Column::Alias("Recast<100ms>", "Recast100ms"),
-            Column::AsIs("CooldownGroup"),
-            Column::AsIs("MaxCharges"),
-            Column::AsIs("AttackType"),
-            Column::AsIs("Aspect"),
-            Column::AsIs("ClassJobCategory"),
-            Column::AsIs("IsPlayerAction")
+            "Name",
+            "Icon",
+            "ActionCategory",
+            "ClassJob",
+            "ClassJobLevel",
+            "IsRoleAction",
+            "CanTargetSelf",
+            "CanTargetParty",
+            "CanTargetFriendly",
+            "CanTargetHostile",
+            "CanTargetDead",
+            "TargetArea",
+            "CastType",
+            "BehaviourType",
+            "Range",
+            "EffectRange",
+            "ActionCombo",
+            "PreservesCombo",
+            "Cast100ms",
+            "Recast100ms",
+            "CooldownGroup",
+            "MaxCharges",
+            "AttackType",
+            "Aspect",
+            "ClassJobCategory",
+            "IsPlayerAction"
         ],
         search_columns: &[
             "Name"
@@ -112,17 +98,17 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
     "Status" => SheetData {
         identifier: "Name",
         columns: &[
-            Column::AsIs("Name"),
-            Column::AsIs("Description"),
-            Column::AsIs("Icon"),
-            Column::AsIs("MaxStacks"),
-            Column::AsIs("StatusCategory"),
-            Column::AsIs("HitEffect"),
-            Column::AsIs("Transfiguration"),
-            Column::AsIs("IsGaze"),
-            Column::AsIs("CanDispel"),
-            Column::AsIs("InflictedByActor"),
-            Column::AsIs("IsPermanent"),
+            "Name",
+            "Description",
+            "Icon",
+            "MaxStacks",
+            "StatusCategory",
+            "HitEffect",
+            "Transfiguration",
+            "IsGaze",
+            "CanDispel",
+            "InflictedByActor",
+            "IsPermanent",
         ],
         search_columns: &[
             "Name",
@@ -133,20 +119,20 @@ pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
     "ContentFinderCondition" => SheetData {
         identifier: "Name",
         columns: &[
-            Column::AsIs("TerritoryType"),
-            Column::Alias("ClassJobLevel{Required}", "ClassJobLevelRequired"),
-            Column::Alias("ClassJobLevel{Sync}", "ClassJobLevelSync"),
-            Column::Alias("ItemLevel{Required}", "ItemLevelRequired"),
-            Column::Alias("ItemLevel{Sync}", "ItemLevelSync"),
-            Column::AsIs("AllowUndersized"),
-            Column::AsIs("AllowExplorerMode"),
-            Column::AsIs("HighEndDuty"),
-            Column::AsIs("Name"),
-            Column::AsIs("NameShort"),
-            Column::AsIs("ShortCode"),
-            Column::AsIs("ContentType"),
-            Column::AsIs("Image"),
-            Column::AsIs("Icon")
+            "Name",
+            "NameShort",
+            "TerritoryType",
+            "ClassJobLevelRequired",
+            "ClassJobLevelSync",
+            "ItemLevelRequired",
+            "ItemLevelSync",
+            "AllowUndersized",
+            "AllowExplorerMode",
+            "HighEndDuty",
+            "ShortCode",
+            "ContentType",
+            "Image",
+            "Icon"
         ],
         search_columns: &[
             "Name",
@@ -173,9 +159,8 @@ mod tests {
                 let column_names: Vec<_> = columns.iter().map(|x| x.name.to_owned()).collect();
 
                 for column in data.columns {
-                    let name = column.name();
-                    if !column_names.iter().any(|y| y == name) {
-                        non_matching_columns.push(format!("{}::{}", sheet_name, name));
+                    if !column_names.iter().any(|y| y == column) {
+                        non_matching_columns.push(format!("{}::{}", sheet_name, column));
                     }
                 }
             } else {

@@ -1,6 +1,6 @@
 use ironworks::excel::{Excel, Field};
-use ironworks_schema::{saint_coinach::Version, Node, Schema};
-use crate::{data::sheet_extractor::print_value, err::{Err, ToUnknownErr}};
+use ironworks_schema::{exdschema::Version, Schema};
+use crate::{data::sheet_extractor::{print_value, filtered_column_iter, SheetColumn}, err::{Err, ToUnknownErr}};
 use super::{role_actions::Role, Args, Id, Init};
 
 const SHEET_NAME: &str = "Action";
@@ -34,9 +34,10 @@ pub fn get(input: &Input, args: &mut Args<impl std::io::Write>, names: bool, pre
 
 fn get_job_actions(id: &Id, init: Init, matches: &mut Vec<Field>, names: bool) -> Result<(), Err> {
     let (class_id, base_class_id) = get_class_id(id, init.excel, init.version)?;
-    let columns = if let Node::Struct(columns) = &init.schema.node { Ok(columns) } else { Err(Err::UnsupportedSheet(SHEET_NAME)) }?;
-    let class_job_column = columns.iter().find(|x| x.name == CLASS_JOB_SHEET_NAME).to_unknown_err()?.offset as usize;
-    let name_column = if names { columns.iter().find(|x| x.name == "Name").to_unknown_err()?.offset as usize } else { 0 };
+
+    let columns: Vec<SheetColumn> = filtered_column_iter(&init.sheet, init.schema, Some(&[CLASS_JOB_SHEET_NAME, "Name"]))?.collect();
+    let class_job_column = &columns.iter().find(|x| &x.name == CLASS_JOB_SHEET_NAME).to_unknown_err()?.column;
+    let name_column = if names { Some(&columns.iter().find(|x| &x.name == "Name").to_unknown_err()?.column) } else { None };
 
     for row in init.sheet.into_iter() {
         let class_job_id = row.field(class_job_column).to_unknown_err()?.into_i8().to_unknown_err()?;
@@ -44,7 +45,7 @@ fn get_job_actions(id: &Id, init: Init, matches: &mut Vec<Field>, names: bool) -
         if class_job_id == class_id as i8 || class_job_id == base_class_id as i8 {
             matches.push(Field::U32(row.row_id()));
 
-            if names {
+            if let Some(name_column) = name_column {
                 matches.push(row.field(name_column).to_unknown_err()?);
             }
         }
@@ -55,9 +56,10 @@ fn get_job_actions(id: &Id, init: Init, matches: &mut Vec<Field>, names: bool) -
 
 fn get_role_actions(role: Role, init: Init, matches: &mut Vec<Field>, names: bool) -> Result<(), Err> {
     let categories = role.get_class_categories();
-    let columns = if let Node::Struct(columns) = &init.schema.node { Ok(columns) } else { Err(Err::UnsupportedSheet(SHEET_NAME)) }?;
-    let class_job_column = columns.iter().find(|x| x.name == "ClassJobCategory").to_unknown_err()?.offset as usize;
-    let name_column = if names { columns.iter().find(|x| x.name == "Name").to_unknown_err()?.offset as usize } else { 0 };
+
+    let columns: Vec<SheetColumn> = filtered_column_iter(&init.sheet, init.schema, Some(&["ClassJobCategory", "Name"]))?.collect();
+    let class_job_column = &columns.iter().find(|x| &x.name == "ClassJobCategory").to_unknown_err()?.column;
+    let name_column = if names { Some(&columns.iter().find(|x| &x.name == "Name").to_unknown_err()?.column) } else { None };
 
     for row in init.sheet.into_iter() {
         let class_job_id = row.field(class_job_column).to_unknown_err()?.into_u8().to_unknown_err()?;
@@ -65,7 +67,7 @@ fn get_role_actions(role: Role, init: Init, matches: &mut Vec<Field>, names: boo
         if categories.contains(&class_job_id) {
             matches.push(Field::U32(row.row_id()));
 
-            if names {
+            if let Some(name_column) = name_column {
                 matches.push(row.field(name_column).unwrap());
             }
         }
@@ -75,25 +77,22 @@ fn get_role_actions(role: Role, init: Init, matches: &mut Vec<Field>, names: boo
 }
 
 fn get_class_id(id: &Id, excel: Excel, version: Version) -> Result<(u8, u8), Err> {
-    let class_jobs = excel.sheet(CLASS_JOB_SHEET_NAME).to_unknown_err()?;
+    let sheet = excel.sheet(CLASS_JOB_SHEET_NAME).to_unknown_err()?;
     let schema = version.sheet(CLASS_JOB_SHEET_NAME).to_unknown_err()?;
+    let columns: Vec<SheetColumn> = filtered_column_iter(&sheet, schema, Some(&["Abbreviation", "ClassJobParent"]))?.collect();
     
-    if let Node::Struct(columns) = schema.node {
-        let class_id = match id {
-            Id::Index(id) => *id,
-            Id::Name(abbreviation) => {
-                let abbreviation_column = columns.iter().find(|x| x.name == "Abbreviation").to_unknown_err()?.offset as usize;
-                class_jobs.into_iter().find(|x| &x.field(abbreviation_column).unwrap().into_string().unwrap().to_string() == abbreviation).ok_or_else(|| Err::JobAcronymNotFound(abbreviation.clone()))?.row_id()
-            }
-        };
+    let class_id = match id {
+        Id::Index(id) => *id,
+        Id::Name(abbreviation) => {
+            let abbreviation_column = &columns.iter().find(|x| x.name == "Abbreviation").to_unknown_err()?.column;
+            sheet.into_iter().find(|x| &x.field(abbreviation_column).unwrap().into_string().unwrap().to_string() == abbreviation).ok_or_else(|| Err::JobAcronymNotFound(abbreviation.clone()))?.row_id()
+        }
+    };
 
-        let base_class_column = columns.iter().find(|x| x.name == "ClassJob{Parent}").to_unknown_err()?.offset as usize;
-        let class_job = excel.sheet(CLASS_JOB_SHEET_NAME).to_unknown_err()?.row(class_id).map_err(|_| Err::JobNotFound(class_id))?;
+    let base_class_column = &columns.iter().find(|x| x.name == "ClassJobParent").to_unknown_err()?.column;
+    let class_job = excel.sheet(CLASS_JOB_SHEET_NAME).to_unknown_err()?.row(class_id).map_err(|_| Err::JobNotFound(class_id))?;
 
-        Ok((class_id as u8, class_job.field(base_class_column).to_unknown_err()?.into_u8().to_unknown_err()?))
-    } else {
-        Err(Err::UnsupportedSheet(SHEET_NAME))
-    }
+    Ok((class_id as u8, class_job.field(base_class_column).to_unknown_err()?.into_u8().to_unknown_err()?))
 }
 
 fn print_values(matches: Vec<Field>, names: bool, out: &mut impl std::io::Write) {
