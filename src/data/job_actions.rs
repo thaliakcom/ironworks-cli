@@ -13,8 +13,8 @@ enum Input {
 }
 
 pub struct Action {
-    id: u32,
-    name: String
+    pub id: u32,
+    pub name: String
 }
 
 /// Gets the job actions for a given class ID or abbreviation.
@@ -30,7 +30,7 @@ pub fn get_role_actions(role: Role, args: &mut Args<impl std::io::Write>, names:
 /// Gets all the job actions of a specific job by ID or acronym.
 /// Or: Gets all the role actions of a specific role.
 fn get(input: Input, args: &mut Args<impl std::io::Write>, names: bool) -> Result<Vec<Action>, Err> {
-    let init = Init::new(SHEET_NAME, &args)?;
+    let init = Init::new(SHEET_NAME, args)?;
     let mut matches: Vec<Action> = Vec::new();
 
     match input {
@@ -53,7 +53,7 @@ fn accumulate_job_actions(id: Id, init: Init, matches: &mut Vec<Action>) -> Resu
     let (class_id, base_class_id) = get_class_id(id, init.excel, init.version)?;
 
     let columns: Vec<SheetColumn> = filtered_column_iter(&init.sheet, init.schema, Some(&[CLASS_JOB_SHEET_NAME, "Name"]))?.collect();
-    let class_job_column = &columns.iter().find(|x| &x.name == CLASS_JOB_SHEET_NAME).to_unknown_err()?.column;
+    let class_job_column = &columns.iter().find(|x| x.name == CLASS_JOB_SHEET_NAME).to_unknown_err()?.column;
     let name_column = &columns.iter().find(|x| &x.name == "Name").to_unknown_err()?.column;
 
     for row in init.sheet.into_iter() {
@@ -110,7 +110,7 @@ fn get_class_id(id: Id, excel: Excel, version: Version) -> Result<(u8, u8), Err>
     Ok((class_id as u8, class_job.field(base_class_column).to_unknown_err()?.into_u8().to_unknown_err()?))
 }
 
-fn print_values(matches: &Vec<Action>, names: bool, out: &mut impl std::io::Write) {
+fn print_values(matches: &[Action], names: bool, out: &mut impl std::io::Write) {
     write!(out, "[").unwrap();
 
     if names {
@@ -134,7 +134,7 @@ fn print_values(matches: &Vec<Action>, names: bool, out: &mut impl std::io::Writ
     writeln!(out, "]").unwrap();
 }
 
-fn pretty_print_values(matches: &Vec<Action>, names: bool, out: &mut impl std::io::Write) {
+fn pretty_print_values(matches: &[Action], names: bool, out: &mut impl std::io::Write) {
     writeln!(out, "[").unwrap();
 
     if names {

@@ -25,15 +25,15 @@ pub fn extract(sheet: super::sheets::Sheet, id: u32, args: &mut Args<impl std::i
 
 pub type KeyValues = HashMap<Cow<'static, str>, Field>;
 
-struct KeyValue {
-    key: Cow<'static, str>,
-    value: Field
+pub struct KeyValue {
+    pub key: Cow<'static, str>,
+    pub value: Field
 }
 
 pub struct SearchMatch {
-    id: u32,
-    name: Field,
-    field: Option<KeyValue>
+    pub id: u32,
+    pub name: Field,
+    pub field: Option<KeyValue>
 }
 
 /// Searches for a given string in the given sheet and prints a list of all matching row IDs
@@ -79,7 +79,7 @@ pub fn search(sheet: super::sheets::Sheet, search_str: &str, args: &mut Args<imp
     
             for SearchMatch { id, name, field } in matches.iter() {
                 write!(out, "  at {: >5}: ", id).unwrap();
-                print_value(out, &name);
+                print_value(out, name);
     
                 if let Some(key_value) = field {
                     write!(out, " -> {{ \"{}\": ", key_value.key).unwrap();
@@ -147,7 +147,7 @@ fn get_values(sheet: super::sheets::Sheet, row_id: u32, args: &mut Args<impl std
         for link in data.links {
             if match link.condition {
                 LinkCondition::Always => false,
-                LinkCondition::IfNot(condition_col, ref condition_val) => compare_fields(&result.iter().find(|x| x.0 == condition_col).to_unknown_err()?.1, condition_val)
+                LinkCondition::IfNot(condition_col, ref condition_val) => compare_fields(result.iter().find(|x| x.0 == condition_col).to_unknown_err()?.1, condition_val)
             } {
                 continue;
             }
@@ -181,9 +181,9 @@ fn print_values(out: &mut impl std::io::Write, values: &KeyValues) -> Result<(),
     write!(out, "{{").unwrap();
     let len = values.len();
 
-    for (i, (key, field)) in values.into_iter().enumerate() {
+    for (i, (key, field)) in values.iter().enumerate() {
         write!(out, "\"{}{}\":", &key.chars().next().unwrap().to_lowercase(), &key[1..]).unwrap();
-        print_value(out, &field);
+        print_value(out, field);
 
         if i < len - 1 {
             write!(out, ",").unwrap();
@@ -199,9 +199,9 @@ fn pretty_print_values(out: &mut impl std::io::Write, values: &KeyValues) -> Res
     writeln!(out, "{{").unwrap();
     let len = values.len();
 
-    for (i, (key, value)) in values.into_iter().enumerate() {
+    for (i, (key, value)) in values.iter().enumerate() {
         write!(out, "  \"{}{}\": ", &key.chars().next().unwrap().to_lowercase(), &key[1..]).unwrap();
-        print_value(out, &value);
+        print_value(out, value);
 
         if i < len - 1 {
             writeln!(out, ",").unwrap();
