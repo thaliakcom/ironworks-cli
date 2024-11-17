@@ -18,18 +18,18 @@ pub struct Action {
 }
 
 /// Gets the job actions for a given class ID or abbreviation.
-pub fn get_job_actions(class_id: Id, args: Args<impl std::io::Write>, names: bool) -> Result<Vec<Action>, Err> {
+pub fn get_job_actions(class_id: Id, args: &mut Args<impl std::io::Write>, names: bool) -> Result<Vec<Action>, Err> {
     get(Input::ClassJob(class_id), args, names)
 }
 
 /// Gets the role actions for a given role.
-pub fn get_role_actions(role: Role, args: Args<impl std::io::Write>, names: bool) -> Result<Vec<Action>, Err> {
+pub fn get_role_actions(role: Role, args: &mut Args<impl std::io::Write>, names: bool) -> Result<Vec<Action>, Err> {
     get(Input::Role(role), args, names)
 }
 
 /// Gets all the job actions of a specific job by ID or acronym.
 /// Or: Gets all the role actions of a specific role.
-fn get(input: Input, args: Args<impl std::io::Write>, names: bool) -> Result<Vec<Action>, Err> {
+fn get(input: Input, args: &mut Args<impl std::io::Write>, names: bool) -> Result<Vec<Action>, Err> {
     let init = Init::new(SHEET_NAME, &args)?;
     let mut matches: Vec<Action> = Vec::new();
 
@@ -38,11 +38,11 @@ fn get(input: Input, args: Args<impl std::io::Write>, names: bool) -> Result<Vec
         Input::ClassJob(id) => accumulate_job_actions(id, init, &mut matches)
     }?;
 
-    if let Some(mut out) = args.out {
+    if let Some(ref mut out) = args.out {
         if args.pretty_print {
-            pretty_print_values(&matches, names, &mut out)
+            pretty_print_values(&matches, names, out)
         } else {
-            print_values(&matches, names, &mut out);
+            print_values(&matches, names, out);
         }
     }
 

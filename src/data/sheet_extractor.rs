@@ -9,14 +9,14 @@ use super::{Args, Init};
 
 /// Extracts a single row from the given sheet and prints a
 /// JSON representation of the result to the given output stream.
-pub fn extract(sheet: super::sheets::Sheet, id: u32, mut args: Args<impl std::io::Write>) -> Result<KeyValues, Err> {
-    let values = get_values(sheet, id, &mut args)?;
+pub fn extract(sheet: super::sheets::Sheet, id: u32, args: &mut Args<impl std::io::Write>) -> Result<KeyValues, Err> {
+    let values = get_values(sheet, id, args)?;
 
-    if let Some(mut out) = args.out {
+    if let Some(ref mut out) = args.out {
         if args.pretty_print {
-            pretty_print_values(&mut out, &values)?;
+            pretty_print_values(out, &values)?;
         } else {
-            print_values(&mut out, &values)?;
+            print_values(out, &values)?;
         }
     }
 
@@ -41,9 +41,9 @@ pub struct SearchMatch {
 ///
 /// Note that this function does not search through _all_ columns; instead
 /// only the columns specified in `sheets.rs` are searched.
-pub fn search(sheet: super::sheets::Sheet, search_str: &str, args: Args<impl std::io::Write>) -> Result<Vec<SearchMatch>, Err> {
+pub fn search(sheet: super::sheets::Sheet, search_str: &str, args: &mut Args<impl std::io::Write>) -> Result<Vec<SearchMatch>, Err> {
     let sheet_name: &'static str = sheet.into();
-    let Init { schema, sheet, .. } = Init::new(sheet_name, &args)?;
+    let Init { schema, sheet, .. } = Init::new(sheet_name, args)?;
     let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err()?;
 
     let mut matches: Vec<SearchMatch> = Vec::new();
@@ -71,7 +71,7 @@ pub fn search(sheet: super::sheets::Sheet, search_str: &str, args: Args<impl std
     }
 
     
-    if let Some(mut out) = args.out {
+    if let Some(ref mut out) = args.out {
         if matches.is_empty() {
             writeln!(out, "No matches found").unwrap();
         } else {
@@ -79,11 +79,11 @@ pub fn search(sheet: super::sheets::Sheet, search_str: &str, args: Args<impl std
     
             for SearchMatch { id, name, field } in matches.iter() {
                 write!(out, "  at {: >5}: ", id).unwrap();
-                print_value(&mut out, &name);
+                print_value(out, &name);
     
                 if let Some(key_value) = field {
                     write!(out, " -> {{ \"{}\": ", key_value.key).unwrap();
-                    print_value(&mut out, &key_value.value);
+                    print_value(out, &key_value.value);
                     write!(out, " }}").unwrap();
                 }
     

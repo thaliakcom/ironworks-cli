@@ -5,7 +5,7 @@ use super::Args;
 
 /// Extracts an icon from the game files by ID and prints
 /// it to [`stdout`] as a PNG.
-pub fn extract(id: u32, mut args: Args<impl std::io::Write>) -> Result<(), Err> {
+pub fn extract(id: u32, args: &mut Args<impl std::io::Write>) -> Result<(), Err> {
     let game_resource = super::get_game_resource(&args.game_path.as_deref())?;
     let ironworks = Ironworks::new().with_resource(SqPack::new(game_resource));
     let icon_path = get_icon_path(id);
