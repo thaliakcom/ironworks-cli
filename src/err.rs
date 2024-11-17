@@ -1,6 +1,7 @@
 use std::{backtrace::Backtrace, borrow::Cow, fmt::Display};
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum Err {
     GameNotFound,
     VersionNotFound(String),
