@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use ironworks::excel::{Field, Sheet};
 use ironworks::file::exh::ColumnDefinition;
+use ironworks::sestring::SeString;
 use ironworks_schema::{Node, Order, Schema};
 use crate::err::{Err, ToUnknownErr};
 use super::sheets::{LinkCondition, LinkSource, SHEET_COLUMNS};
@@ -32,7 +33,7 @@ pub struct KeyValue {
 
 pub struct SearchMatch {
     pub id: u32,
-    pub name: Field,
+    pub name: SeString<'static>,
     pub field: Option<KeyValue>
 }
 
@@ -52,7 +53,7 @@ pub fn search(sheet: super::sheets::Sheet, search_str: &str, args: &mut Args<imp
     let search_columns: Vec<_> = filtered_columns.iter().filter(|x| sheet_data.search_columns.contains(&x.name.as_ref())).collect();
 
     for row in sheet.into_iter() {
-        let name = row.field(&name_column.column).to_unknown_err()?;
+        let name = row.field(&name_column.column).to_unknown_err()?.into_string().to_unknown_err()?;
 
         for column in search_columns.iter() {
             let field = row.field(&column.column).to_unknown_err()?;
@@ -79,7 +80,7 @@ pub fn search(sheet: super::sheets::Sheet, search_str: &str, args: &mut Args<imp
     
             for SearchMatch { id, name, field } in matches.iter() {
                 write!(out, "  at {: >5}: ", id).unwrap();
-                print_value(out, name);
+                print_string(out, name).unwrap();
     
                 if let Some(key_value) = field {
                     write!(out, " -> {{ \"{}\": ", key_value.key).unwrap();
@@ -213,9 +214,9 @@ fn pretty_print_values(out: &mut impl std::io::Write, values: &KeyValues) -> Res
 }
 
 /// Prints the value contained in the field to [`stdout`].
-pub fn print_value(out: &mut impl std::io::Write, field: &Field) {
+pub(crate) fn print_value(out: &mut impl std::io::Write, field: &Field) {
     match field {
-        Field::String(s) => write!(out, "\"{}\"", s.to_string().replace('\n', "\\n").replace('"', "\\\"")),
+        Field::String(s) => print_string(out, s),
         Field::Bool(b) => write!(out, "{}", b),
         Field::I8(num) => write!(out, "{}", num),
         Field::I16(num) => write!(out, "{}", num),
@@ -227,6 +228,10 @@ pub fn print_value(out: &mut impl std::io::Write, field: &Field) {
         Field::U64(num) => write!(out, "{}", num),
         Field::F32(num) => write!(out, "{}", num)
     }.unwrap();
+}
+
+fn print_string(out: &mut impl std::io::Write, string: &SeString<'static>) -> std::io::Result<()> {
+    write!(out, "\"{}\"", string.to_string().replace('\n', "\\n").replace('"', "\\\""))
 }
 
 /// Attempts to convert the value contained in the field to [`u32`].
