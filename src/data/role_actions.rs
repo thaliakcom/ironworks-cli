@@ -1,6 +1,3 @@
-use crate::err::Err;
-use super::Args;
-
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 #[clap(rename_all = "kebab_case")]
 pub enum Role {
@@ -21,8 +18,4 @@ impl Role {
             Role::Caster => &[116, 120]
         }
     }
-}
-
-pub fn get(role: Role, args: &mut Args<impl std::io::Write>, names: bool, pretty_print: bool) -> Result<(), Err> {
-    super::job_actions::get(&super::job_actions::Input::Role(role), args, names, pretty_print)
 }

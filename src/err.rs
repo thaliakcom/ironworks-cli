@@ -13,6 +13,7 @@ pub enum Err {
     JobAcronymNotFound(String),
     UnsupportedIconFormat(u32, String),
     UnsupportedSheet(Cow<'static, str>),
+    IconMissingOut,
     Unknown(Option<Backtrace>)
 }
 
@@ -30,6 +31,7 @@ impl Display for Err {
             Self::JobAcronymNotFound(job) => writeln!(f, "There is no class or job with abbreviation \"{}\"", job),
             Self::UnsupportedIconFormat(format, path) => writeln!(f, "Unsupported icon format {:#04x} at \"{}\"", format, path),
             Self::UnsupportedSheet(sheet) => writeln!(f, "Unsupported sheet type {}", sheet),
+            Self::IconMissingOut => writeln!(f, "Icons require an output stream to write the image to"),
             Self::Unknown(trace) => if let Some(trace) = trace {
                 writeln!(f, "An unknown error occurred at:\n{}", trace)
             } else {

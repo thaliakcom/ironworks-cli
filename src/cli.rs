@@ -1,15 +1,14 @@
-use std::fmt::Display;
+use std::convert::Infallible;
 use std::io::{stdout, Stdout};
 use clap::{Args, Parser, Subcommand};
 use clio::ClioPath;
-use strum::IntoStaticStr;
-use ironworks_cli::data::role_actions::Role;
+use ironworks_cli::data::Role;
 use ironworks_cli::data::Id;
 
 /// A command line utility that can extract data from FFXIV's internal Excel sheets.
 #[derive(Parser, Debug)]
 #[command(version, propagate_version = true)]
-pub struct Cli {
+pub(crate) struct Cli {
     #[command(subcommand)]
     pub command: Command,
     /// Path to the game's directory.
@@ -27,29 +26,44 @@ pub struct Cli {
     pub refresh: bool
 }
 
-impl From<Cli> for ironworks_cli::data::Args<Stdout> {
-    fn from(value: Cli) -> Self {
-        Self {
-            game_path: value.game.map(|x| x.to_path_buf()),
-            refresh: value.refresh,
-            out: stdout()
+impl Cli {
+    pub fn pretty_print(&self) -> bool {
+        match &self.command {
+            | Command::ContentFinderCondition(command_args) => command_args.pretty,
+            | Command::Action(command_args) => command_args.pretty,
+            | Command::Status(command_args) => command_args.pretty,
+            | Command::JobActions(command_args) => command_args.base.pretty,
+            | Command::RoleActions(command_args) => command_args.pretty,
+            _ => false
         }
     }
 }
 
-impl From<&Cli> for ironworks_cli::data::Args<Stdout> {
+impl From<Cli> for ironworks_cli::Args<Stdout> {
+    fn from(value: Cli) -> Self {
+        Self {
+            game_path: value.game.as_ref().map(|x| x.to_path_buf()),
+            refresh: value.refresh,
+            out: Some(stdout()),
+            pretty_print: value.pretty_print()
+        }
+    }
+}
+
+impl From<&Cli> for ironworks_cli::Args<Stdout> {
     fn from(value: &Cli) -> Self {
         Self {
             game_path: value.game.as_ref().map(|x| x.to_path_buf()),
             refresh: value.refresh,
-            out: stdout()
+            out: Some(stdout()),
+            pretty_print: value.pretty_print()
         }
     }
 }
 
-#[derive(Subcommand, Debug, IntoStaticStr)]
+#[derive(Subcommand, Debug)]
 #[clap(rename_all = "verbatim")]
-pub enum Command {
+pub(crate) enum Command {
     /// Retrieves JSON information about a specific duty.
     ContentFinderCondition(SheetCommandArgs),
     /// Retrieves JSON information about a specific action.
@@ -70,15 +84,8 @@ pub enum Command {
     Version
 }
 
-impl Command {
-    /// Gets the name of the game sheet corresponding to this command.
-    pub fn sheet(&self) -> &'static str {
-        self.into()
-    }
-}
-
 #[derive(Args, Debug)]
-pub struct SheetCommandArgs {
+pub(crate) struct SheetCommandArgs {
     /// The ID of the item that information should be retrieved about.
     /// Can also be a string to search for an item by name.
     #[clap(value_parser = parse_id)]
@@ -89,7 +96,7 @@ pub struct SheetCommandArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct JobActionsCommandArgs {
+pub(crate) struct JobActionsCommandArgs {
     #[clap(flatten)]
     pub base: SheetCommandArgs,
     /// Prints an array of JSON objects containing each action's ID and name.
@@ -98,7 +105,7 @@ pub struct JobActionsCommandArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct RoleActionsCommandArgs {
+pub(crate) struct RoleActionsCommandArgs {
     #[clap(value_enum)]
     pub role: Role,
     /// Prints an array of JSON objects containing each action's ID and name.
@@ -110,21 +117,11 @@ pub struct RoleActionsCommandArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct IconArgs {
+pub(crate) struct IconArgs {
     /// The ID of the item that information should be retrieved about.
     pub id: u32
 }
 
-#[derive(Debug)]
-struct Never;
-
-impl std::error::Error for Never {}
-impl Display for Never {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        unimplemented!()
-    }
-}
-
-fn parse_id(input: &str) -> Result<Id, Never> {
+fn parse_id(input: &str) -> Result<Id, Infallible> {
     Ok(input.parse::<u32>().map_or(Id::Name(input.to_owned()), Id::Index))
 }

@@ -1,9 +1,17 @@
 use ironworks::excel::Field;
 use phf::phf_map;
+use strum::IntoStaticStr;
+
+#[derive(Debug, Clone, PartialEq, Eq, IntoStaticStr)]
+pub enum Sheet {
+    Action,
+    Status,
+    ContentFinderCondition
+}
 
 /// A source for a [`SheetLink`], i.e. the type of column in the source
 /// sheet that is used to join to another sheet.
-pub enum LinkSource {
+pub(crate) enum LinkSource {
     /// The [`SheetLink`] links to another sheet directly by cross-referencing both IDs.
     ID,
     /// The [`SheetLink`] links to another sheet by cross-referencing the column defined
@@ -13,7 +21,7 @@ pub enum LinkSource {
 }
 
 /// Represents which columns in the linked sheet are used.
-pub struct SheetLinkColumn {
+pub(crate) struct SheetLinkColumn {
     /// The name of a column in the target sheet to print.
     pub source: &'static str,
     /// What this field should be called in the output.
@@ -21,7 +29,7 @@ pub struct SheetLinkColumn {
 }
 
 /// Represents a link to another sheet.
-pub struct SheetLink {
+pub(crate) struct SheetLink {
     /// The link source. Describes how the two sheets should be connected.
     pub source: LinkSource,
     /// The sheet to link to.
@@ -32,7 +40,7 @@ pub struct SheetLink {
     pub condition: LinkCondition
 }
 
-pub enum LinkCondition {
+pub(crate) enum LinkCondition {
     /// Condition always evaluates to `true`.
     Always,
     #[allow(dead_code)]
@@ -41,7 +49,7 @@ pub enum LinkCondition {
 }
 
 /// Data for a sheet.
-pub struct SheetData {
+pub(crate) struct SheetData {
     /// Name of the column that contains an identifier for the column.
     pub identifier: &'static str,
     /// Which columns to add to the output.
@@ -52,7 +60,7 @@ pub struct SheetData {
     pub search_columns: &'static [&'static str]
 }
 
-pub static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
+pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
     "Action" => SheetData {
         identifier: "Name",
         columns: &[
