@@ -150,7 +150,7 @@ fn get_values(sheet: super::sheets::Sheet, row_id: u32, args: &mut Args<impl std
         for link in data.links {
             if match link.condition {
                 LinkCondition::Always => false,
-                LinkCondition::IfNot(condition_col, ref condition_val) => compare_fields(result.iter().find(|x| x.0 == condition_col).to_unknown_err()?.1, condition_val)
+                LinkCondition::Predicate(condition_col, predicate) => !predicate(result.iter().find(|x| x.0 == condition_col).to_unknown_err()?.1)
             } {
                 continue;
             }
@@ -249,22 +249,5 @@ fn get_u32(field: &Field) -> Option<u32> {
         Field::U64(num) => Some(*num as u32),
         Field::F32(num) => Some(*num as u32),
         _ => None
-    }
-}
-
-fn compare_fields(a: &Field, b: &Field) -> bool {
-    match (a, b) {
-        (Field::String(a), Field::String(b)) => a.to_string() == b.to_string(),
-        (Field::Bool(a), Field::Bool(b)) => a == b,
-        (Field::I8(a), Field::I8(b)) => a == b,
-        (Field::I16(a), Field::I16(b)) => a == b,
-        (Field::I32(a), Field::I32(b)) => a == b,
-        (Field::I64(a), Field::I64(b)) => a == b,
-        (Field::U8(a), Field::U8(b)) => a == b,
-        (Field::U16(a), Field::U16(b)) => a == b,
-        (Field::U32(a), Field::U32(b)) => a == b,
-        (Field::U64(a), Field::U64(b)) => a == b,
-        (Field::F32(a), Field::F32(b)) => a == b,
-        _ => false
     }
 }

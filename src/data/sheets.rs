@@ -44,8 +44,8 @@ pub(crate) enum LinkCondition {
     /// Condition always evaluates to `true`.
     Always,
     #[allow(dead_code)]
-    /// Condition evaluates to `true` if the given column in the source row does _not_ contain the value.
-    IfNot(&'static str, Field)
+    /// Condition evaluates to `true` if the given column in the source row satisfies the condition.
+    Predicate(&'static str, fn(&Field) -> bool)
 }
 
 /// Data for a sheet.
@@ -99,7 +99,7 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
                 source: LinkSource::ID,
                 sheet: "ActionTransient",
                 columns: &[SheetLinkColumn { source: "Description", target: "Description" }],
-                condition: LinkCondition::Always
+                condition: LinkCondition::Predicate("ClassJob", |x| *x.as_i8().unwrap() != -1)
             }
         ]
     },
