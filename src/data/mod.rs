@@ -14,6 +14,7 @@ pub use role_actions::*;
 pub use sheet_extractor::*;
 pub use sheets::*;
 
+#[derive(Debug)]
 pub struct Args<O : std::io::Write> {
     /// The path to the game directory.
     pub game_path: Option<PathBuf>,

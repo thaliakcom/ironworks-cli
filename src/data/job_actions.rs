@@ -12,6 +12,7 @@ enum Input {
     ClassJob(Id)
 }
 
+#[derive(Debug)]
 pub struct Action {
     pub id: u32,
     pub name: String

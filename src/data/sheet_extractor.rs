@@ -26,11 +26,13 @@ pub fn extract(sheet: super::sheets::Sheet, id: u32, args: &mut Args<impl std::i
 
 pub type KeyValues = HashMap<Cow<'static, str>, Field>;
 
+#[derive(Debug)]
 pub struct KeyValue {
     pub key: Cow<'static, str>,
     pub value: Field
 }
 
+#[derive(Debug)]
 pub struct SearchMatch {
     pub id: u32,
     pub name: SeString<'static>,
