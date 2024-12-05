@@ -59,7 +59,7 @@ pub fn search(sheet: super::sheets::Sheet, search_str: &str, args: &mut Args<imp
             let field = row.field(&column.column).to_unknown_err()?;
             let sestring = field.as_string().to_unknown_err()?;
 
-            if sestring.to_string().contains(search_str) {
+            if sestring.to_string().to_lowercase().contains(&search_str.to_lowercase()) {
                 if column.name == name_column.name {
                     matches.push(SearchMatch { id: row.row_id(), name, field: None });
                 } else {
