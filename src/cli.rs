@@ -1,16 +1,15 @@
 use std::convert::Infallible;
-use std::io::{stdout, Stdout};
 use clap::{Args, Parser, Subcommand};
 use clio::ClioPath;
-use ironworks_cli::data::Role;
-use ironworks_cli::data::Id;
+use ironworks_cli::Role;
+use ironworks_cli::Id;
 
 /// A command line utility that can extract data from FFXIV's internal Excel sheets.
 #[derive(Parser, Debug)]
-#[command(version, propagate_version = true)]
+#[command()]
 pub(crate) struct Cli {
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
     /// Path to the game's directory.
     /// If not specified, attempts to find the game directory automatically.
     #[clap(global = true, long, short, value_parser, default_value = "Option::None")]
@@ -23,42 +22,10 @@ pub(crate) struct Cli {
     /// you may accidentally run this program before the upstream data is updated,
     /// in which case this flag is required to manually update the header data.
     #[clap(global = true, long, short)]
-    pub refresh: bool
-}
-
-impl Cli {
-    pub fn pretty_print(&self) -> bool {
-        match &self.command {
-            | Command::ContentFinderCondition(command_args) => command_args.pretty,
-            | Command::Action(command_args) => command_args.pretty,
-            | Command::Status(command_args) => command_args.pretty,
-            | Command::JobActions(command_args) => command_args.base.pretty,
-            | Command::RoleActions(command_args) => command_args.pretty,
-            _ => false
-        }
-    }
-}
-
-impl From<Cli> for ironworks_cli::Args<Stdout> {
-    fn from(value: Cli) -> Self {
-        Self {
-            game_path: value.game.as_ref().map(|x| x.to_path_buf()),
-            refresh: value.refresh,
-            out: Some(stdout()),
-            pretty_print: value.pretty_print()
-        }
-    }
-}
-
-impl From<&Cli> for ironworks_cli::Args<Stdout> {
-    fn from(value: &Cli) -> Self {
-        Self {
-            game_path: value.game.as_ref().map(|x| x.to_path_buf()),
-            refresh: value.refresh,
-            out: Some(stdout()),
-            pretty_print: value.pretty_print()
-        }
-    }
+    pub refresh: bool,
+    /// Prints the version of the application and the game directory (if specified or found).
+    #[clap(global = true, long, short)]
+    pub version: bool
 }
 
 #[derive(Subcommand, Debug)]
@@ -78,10 +45,7 @@ pub(crate) enum Command {
     RoleActions(RoleActionsCommandArgs),
     /// Retrieves a specific icon and prints its binary data.
     #[clap(name = "icon")]
-    Icon(IconArgs),
-    /// Prints the game's installed version.
-    #[clap(name = "version")]
-    Version
+    Icon(IconArgs)
 }
 
 #[derive(Args, Debug)]

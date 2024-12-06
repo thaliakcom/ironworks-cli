@@ -1,13 +1,13 @@
-use std::io::Stdout;
+use std::io::stdout;
 use std::process::ExitCode;
+use clio::ClioPath;
 use ironworks_cli::err::Err;
 
-use clap::Parser;
+use clap::{crate_name, crate_version, Parser};
 use cli::{Cli, Command, IconArgs, JobActionsCommandArgs, RoleActionsCommandArgs, SheetCommandArgs};
-use ironworks_cli::data::{self, Id};
+use ironworks_cli::{self, Id};
 use ironworks_cli::err::ToUnknownErr;
-use ironworks::sqpack::Resource;
-use ironworks_cli::Sheet;
+use ironworks_cli::{IronworksBuilder, IronworksCli, Sheet, WritableResult};
 
 mod cli;
 
@@ -24,26 +24,56 @@ fn main() -> ExitCode {
 }
 
 fn process(cli: Cli) -> Result<(), Err> {
-    match cli.command {
-        Command::Icon(IconArgs { id }) => data::extract_icon(id, &mut cli.into()),
-        Command::JobActions(JobActionsCommandArgs { ref base, names }) => data::get_job_actions(base.id.clone(), &mut cli.into(), names).map(|_| ()),
-        Command::RoleActions(RoleActionsCommandArgs { role, names, .. }) => data::get_role_actions(role, &mut cli.into(), names).map(|_| ()),
-        Command::ContentFinderCondition(SheetCommandArgs { ref id, .. }) => process_sheet_command(Sheet::ContentFinderCondition, id, &cli),
-      | Command::Action(SheetCommandArgs { ref id, .. }) => process_sheet_command(Sheet::Action, id, &cli),
-      | Command::Status(SheetCommandArgs { ref id, .. }) => process_sheet_command(Sheet::Status, id, &cli),
-        Command::Version => {
-            let game_res = data::get_game_resource(&Into::<ironworks_cli::data::Args<Stdout>>::into(cli).game_path.as_deref()).to_unknown_err()?;
-            let version = game_res.version(0).to_unknown_err()?;
-            println!("{}", version);
+    let path = &cli.game;
 
-            Ok(())
-        }
+    if cli.version {
+        print_version(path);
+        return Ok(());
+    }
+
+    match cli.command.ok_or(Err::NoSubcommand)? {
+        Command::Icon(IconArgs { id }) => ironworks_cli::extract_icon(id, cli.game.as_deref(), stdout()),
+        Command::JobActions(JobActionsCommandArgs { base, names }) => print(ironworks(path)?.get_job_actions(base.id)?.writable(names), base.pretty),
+        Command::RoleActions(RoleActionsCommandArgs { role, names, pretty }) => print(ironworks(path)?.get_role_actions(role)?.writable(names), pretty),
+        Command::ContentFinderCondition(SheetCommandArgs { ref id, pretty }) => process_sheet_command(Sheet::ContentFinderCondition, id, path, pretty),
+        Command::Action(SheetCommandArgs { ref id, pretty }) => process_sheet_command(Sheet::Action, id, path, pretty),
+        Command::Status(SheetCommandArgs { ref id, pretty }) => process_sheet_command(Sheet::Status, id, path, pretty)
     }
 }
 
-fn process_sheet_command(sheet: Sheet, id: &Id, cli: &Cli) -> Result<(), Err> {
+fn ironworks(game_path: &Option<ClioPath>) -> Result<IronworksCli, Err> {
+    let mut builder = IronworksBuilder::new();
+
+    if let Some(game_path) = game_path {
+        builder.game_path(game_path.to_path_buf());
+    }
+
+    builder.build()
+}
+
+fn print(input: impl WritableResult, pretty: bool) -> Result<(), Err> {
+    if pretty {
+        input.pretty_write(stdout()).to_unknown_err()
+    } else {
+        input.write(stdout()).to_unknown_err()
+    }
+}
+
+fn process_sheet_command(sheet: Sheet, id: &Id, game_path: &Option<ClioPath>, pretty: bool) -> Result<(), Err> {
+    let ironworks = ironworks(game_path)?;
+
     match id {
-        Id::Name(name) => data::search(sheet, name, &mut cli.into()).map(|_| ()),
-        Id::Index(index) => data::extract(sheet, *index, &mut cli.into()).map(|_| ()),
+        Id::Name(name) => print(ironworks.search(sheet, name)?, pretty),
+        Id::Index(index) => print(ironworks.get(sheet, *index)?, pretty),
+    }
+}
+
+fn print_version(game_path: &Option<ClioPath>) {
+    let ironworks = ironworks(game_path);
+
+    println!("{} v{}", crate_name!(), crate_version!());
+
+    if let Ok(ironworks) = ironworks {
+        println!("Final Fantasy XIV v{}", ironworks.version());
     }
 }

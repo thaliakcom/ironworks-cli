@@ -1,12 +1,12 @@
 [package]
 name = "ironworks-cli"
-version = "0.4.4"
+version = "0.5.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.5.4", features = ["derive"] }
+clap = { version = "4.5.4", features = ["derive", "cargo"] }
 clio = { version = "0.3.5", features = ["clap-parse"] }
 ironworks = { git = "https://github.com/ackwell/ironworks", features = ["excel", "sqpack", "tex"], rev = "7591e21" }
 ironworks_schema = { git = "https://github.com/ackwell/ironworks", features = ["exdschema"], rev = "7591e21" }

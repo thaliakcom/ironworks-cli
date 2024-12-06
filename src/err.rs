@@ -5,7 +5,7 @@ use thiserror::Error;
 pub enum Err {
     GameNotFound,
     VersionNotFound(String),
-    SheetNotFound(&'static str),
+    SheetNotFound(Cow<'static, str>),
     RowNotFound(&'static str, u32),
     ColumnNotFound(&'static str, &'static str),
     NoIndex(&'static str, &'static str),
@@ -15,6 +15,7 @@ pub enum Err {
     UnsupportedIconFormat(u32, String),
     UnsupportedSheet(Cow<'static, str>),
     IconMissingOut,
+    NoSubcommand,
     Unknown(Option<Backtrace>)
 }
 
@@ -33,6 +34,7 @@ impl Display for Err {
             Self::UnsupportedIconFormat(format, path) => writeln!(f, "Unsupported icon format {:#04x} at \"{}\"", format, path),
             Self::UnsupportedSheet(sheet) => writeln!(f, "Unsupported sheet type {}", sheet),
             Self::IconMissingOut => writeln!(f, "Icons require an output stream to write the image to"),
+            Self::NoSubcommand => writeln!(f, "No subcommand was specified"),
             Self::Unknown(trace) => if let Some(trace) = trace {
                 writeln!(f, "An unknown error occurred at:\n{}", trace)
             } else {

@@ -1,239 +1,209 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use ironworks::excel::{Field, Sheet};
+use ironworks::excel::Field;
 use ironworks::file::exh::ColumnDefinition;
 use ironworks::sestring::SeString;
-use ironworks_schema::{Node, Order, Schema};
 use crate::err::{Err, ToUnknownErr};
 use super::sheets::{LinkCondition, LinkSource, SHEET_COLUMNS};
-use super::{Args, Init};
+use super::{IronworksCli, WritableResult};
 
-/// Extracts a single row from the given sheet and prints a
-/// JSON representation of the result to the given output stream.
-pub fn extract(sheet: super::sheets::Sheet, id: u32, args: &mut Args<impl std::io::Write>) -> Result<KeyValues, Err> {
-    let values = get_values(sheet, id, args)?;
-
-    if let Some(ref mut out) = args.out {
-        if args.pretty_print {
-            pretty_print_values(out, &values)?;
-        } else {
-            print_values(out, &values)?;
-        }
+impl IronworksCli {
+    /// Extracts a single row from the given sheet and prints a
+    /// JSON representation of the result to the given output stream.
+    pub fn get(&self, sheet: super::sheets::Sheet, id: u32) -> Result<KeyValues, Err> {
+        self.get_values(sheet, id)
     }
 
-    Ok(values)
+    /// Gets a [`Vec`] of the field values and their field names
+    /// from the given row in the given sheet.
+    ///
+    /// Note that this function does not extract _all_ fields. Instead only
+    /// the fields specified in `sheets.rs` are extracted.
+    fn get_values(&self, sheet: super::sheets::Sheet, row_id: u32) -> Result<KeyValues, Err> {
+        let sheet_name: &'static str = sheet.into();
+        let sheet_info = self.get_sheet(sheet_name)?;
+        // For some reason calling `sheet.row()` on the Action sheet
+        // takes longer than any other sheet by a magnitude of about 4x.
+        // Since this is a bug in the dependency, we can't fix it.
+        let row = sheet_info.sheet.row(row_id).map_err(|_| Err::RowNotFound(sheet_name, row_id))?;
+        let sheet_data = SHEET_COLUMNS.get(sheet_name);
+        let filtered_columns: Vec<SheetColumn> = if let Some(sheet_data) = sheet_data {
+            sheet_info.filtered_columns(sheet_data.columns)?.collect()
+        }  else {
+            sheet_info.columns()?.collect()
+        };
+
+        let mut result: KeyValues = filtered_columns.iter()
+            .map(|column| (Cow::Owned(column.name.to_owned()), row.field(&column.column).unwrap()))
+            .collect();
+
+        if let Some(data) = sheet_data {
+            for link in data.links {
+                if match link.condition {
+                    LinkCondition::Always => false,
+                    LinkCondition::Predicate(condition_col, predicate) => !predicate(result.iter().find(|x| x.0 == condition_col).to_unknown_err()?.1)
+                } {
+                    continue;
+                }
+
+                let linked_sheet_info = self.get_sheet(link.sheet)?;
+                let linked_row_id = if let LinkSource::Field(column_name) = link.source {
+                    let value = &result.iter().find(|x| x.0 == column_name).ok_or(Err::ColumnNotFound(sheet_name, column_name))?.1;
+                    get_u32(value).ok_or(Err::NoIndex(sheet_name, column_name))?
+                } else {
+                    row_id
+                };
+
+                let linked_row = linked_sheet_info.sheet.row(linked_row_id).map_err(|_| Err::RowNotFound(link.sheet, linked_row_id))?;
+
+                for column in linked_sheet_info.columns()? {
+                    let link_data = link.columns.iter().find(|x| x.source == column.name);
+
+                    if let Some(link_data) = link_data {
+                        result.insert(Cow::Borrowed(link_data.target), linked_row.field(&column.column).to_unknown_err()?);
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Searches for a given string in the given sheet and prints a list of all matching row IDs
+    /// to [`stdout`].
+    ///
+    /// Note that this function does not search through _all_ columns; instead
+    /// only the columns specified in `sheets.rs` are searched.
+    pub fn search<'a>(&'a self, sheet: super::sheets::Sheet, search_str: &str) -> Result<SearchMatches<'a>, Err> {
+        let sheet_name: &'static str = sheet.into();
+        let sheet_info = self.get_sheet(sheet_name)?;
+        let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err()?;
+    
+        let mut matches: SearchMatches<'a> = Vec::new();
+        let filtered_columns: Vec<SheetColumn> = sheet_info.filtered_columns(sheet_data.columns)?.collect();
+        let name_column = filtered_columns.iter().find(|x| x.name == sheet_data.identifier).to_unknown_err()?;
+        let search_columns: Vec<_> = filtered_columns.iter().filter(|x| sheet_data.search_columns.contains(&x.name.as_ref())).collect();
+    
+        for row in sheet_info.sheet.into_iter() {
+            let name = row.field(&name_column.column).to_unknown_err()?.into_string().to_unknown_err()?;
+    
+            for column in search_columns.iter() {
+                let field = row.field(&column.column).to_unknown_err()?;
+                let sestring = field.as_string().to_unknown_err()?;
+    
+                if sestring.to_string().to_lowercase().contains(&search_str.to_lowercase()) {
+                    if column.name == name_column.name {
+                        matches.push(SearchMatch { id: row.row_id(), name, field: None });
+                    } else {
+                        matches.push(SearchMatch { id: row.row_id(), name, field: Some(KeyValue { key: Cow::Owned(column.name.clone()), value: field }) });
+                    }
+    
+                    break;
+                }
+            }
+        }
+    
+        Ok(matches)
+    }
 }
 
-pub type KeyValues = HashMap<Cow<'static, str>, Field>;
+/// The return type of the [`IronworksCli::extract`] function
+/// that can also be written to an [`std::io::Write`] stream.
+///
+/// Internally it's simply a key value hash map, similar to a JSON object.
+pub type KeyValues<'a> = HashMap<Cow<'a, str>, Field>;
 
+impl <'a> WritableResult for KeyValues<'a> {
+    fn write(&self, mut w: impl std::io::Write) -> std::io::Result<()> {
+        write!(w, "{{")?;
+        let len = self.len();
+    
+        for (i, (key, field)) in self.iter().enumerate() {
+            write!(w, "\"{}{}\":", &key.chars().next().unwrap().to_lowercase(), &key[1..])?;
+            field.write(&mut w)?;
+    
+            if i < len - 1 {
+                write!(w, ",")?;
+            }
+        }
+        writeln!(w, "}}")?;
+    
+        Ok(())
+    }
+
+    fn pretty_write(&self, mut w: impl std::io::Write) -> std::io::Result<()> {
+        writeln!(w, "{{")?;
+        let len = self.len();
+    
+        for (i, (key, value)) in self.iter().enumerate() {
+            write!(w, "  \"{}{}\": ", &key.chars().next().unwrap().to_lowercase(), &key[1..])?;
+            value.pretty_write(&mut w)?;
+    
+            if i < len - 1 {
+                writeln!(w, ",")?;
+            }
+        }
+        writeln!(w, "\n}}")?;
+    
+        Ok(())
+    }
+}
+
+/// A key value pair for an Excel field.
 #[derive(Debug)]
-pub struct KeyValue {
-    pub key: Cow<'static, str>,
+pub struct KeyValue<'a> {
+    pub key: Cow<'a, str>,
     pub value: Field
 }
 
+/// A search match that contains references to data that lives
+/// within [`IronworksCli`].
 #[derive(Debug)]
-pub struct SearchMatch {
+pub struct SearchMatch<'a> {
+    /// The ID (or row index) of the found entity.
     pub id: u32,
-    pub name: SeString<'static>,
-    pub field: Option<KeyValue>
+    /// The name of the entity as retrieved from its "name" column.
+    pub name: SeString<'a>,
+    /// A key-value pair of the column that matched the search query.
+    /// This will be [`None`] if only the row's name matched.
+    pub field: Option<KeyValue<'a>>
 }
 
-/// Searches for a given string in the given sheet and prints a list of all matching row IDs
-/// to [`stdout`].
-///
-/// Note that this function does not search through _all_ columns; instead
-/// only the columns specified in `sheets.rs` are searched.
-pub fn search(sheet: super::sheets::Sheet, search_str: &str, args: &mut Args<impl std::io::Write>) -> Result<Vec<SearchMatch>, Err> {
-    let sheet_name: &'static str = sheet.into();
-    let Init { schema, sheet, .. } = Init::new(sheet_name, args)?;
-    let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err()?;
+/// The matches of the [`IronworksCli::search()`] function.
+pub type SearchMatches<'a> = Vec<SearchMatch<'a>>;
 
-    let mut matches: Vec<SearchMatch> = Vec::new();
-    let filtered_columns: Vec<SheetColumn> = filtered_column_iter(&sheet, schema, Some(sheet_data.columns))?.collect();
-    let name_column = filtered_columns.iter().find(|x| &x.name == sheet_data.identifier).to_unknown_err()?;
-    let search_columns: Vec<_> = filtered_columns.iter().filter(|x| sheet_data.search_columns.contains(&x.name.as_ref())).collect();
-
-    for row in sheet.into_iter() {
-        let name = row.field(&name_column.column).to_unknown_err()?.into_string().to_unknown_err()?;
-
-        for column in search_columns.iter() {
-            let field = row.field(&column.column).to_unknown_err()?;
-            let sestring = field.as_string().to_unknown_err()?;
-
-            if sestring.to_string().to_lowercase().contains(&search_str.to_lowercase()) {
-                if column.name == name_column.name {
-                    matches.push(SearchMatch { id: row.row_id(), name, field: None });
-                } else {
-                    matches.push(SearchMatch { id: row.row_id(), name, field: Some(KeyValue { key: Cow::Owned(column.name.clone()), value: field }) });
-                }
-
-                break;
-            }
-        }
+impl <'a> WritableResult for SearchMatches<'a> {
+    fn write(&self, w: impl std::io::Write) -> std::io::Result<()> {
+        self.pretty_write(w)
     }
 
-    
-    if let Some(ref mut out) = args.out {
-        if matches.is_empty() {
-            writeln!(out, "No matches found").unwrap();
+    fn pretty_write(&self, mut w: impl std::io::Write) -> std::io::Result<()> {
+        if self.is_empty() {
+            writeln!(w, "No matches found")?;
         } else {
-            writeln!(out, "{} matches found:", matches.len()).unwrap();
+            writeln!(w, "{} matches found:", self.len())?;
     
-            for SearchMatch { id, name, field } in matches.iter() {
-                write!(out, "  at {: >5}: ", id).unwrap();
-                print_string(out, name).unwrap();
+            for SearchMatch { id, name, field } in self.iter() {
+                write!(w, "  at {: >5}: ", id)?;
+                name.pretty_write(&mut w)?;
     
                 if let Some(key_value) = field {
-                    write!(out, " -> {{ \"{}\": ", key_value.key).unwrap();
-                    print_value(out, &key_value.value);
-                    write!(out, " }}").unwrap();
+                    write!(w, " -> {{ \"{}\": ", key_value.key)?;
+                    key_value.value.pretty_write(&mut w)?;
+                    write!(w, " }}")?;
                 }
     
-                writeln!(out, ).unwrap();
+                writeln!(w, )?;
             }
         }
-    }
 
-    Ok(matches)
+        Ok(())
+    }
 }
 
 pub(crate) struct SheetColumn {
     pub name: String,
     pub column: ColumnDefinition
-}
-
-pub(crate) fn column_iter(sheet: &Sheet<&str>, schema: ironworks_schema::Sheet) -> Result<impl Iterator<Item = SheetColumn>, Err> {
-    filtered_column_iter(sheet, schema, None)
-}
-
-pub(crate) fn filtered_column_iter(sheet: &Sheet<&str>, schema: ironworks_schema::Sheet, filter_columns: Option<&'static [&'static str]>) -> Result<impl Iterator<Item = SheetColumn>, Err> {
-    let mut columns = sheet.columns().map_err(|_| Err::UnsupportedSheet(Cow::Owned(sheet.name())))?;
-    let fields = if let Node::Struct(columns) = schema.node { columns } else { Err(Err::UnsupportedSheet(Cow::Owned(sheet.name())))? };
-
-    match schema.order {
-        Order::Index => (),
-        Order::Offset => columns.sort_by_key(|column| column.offset()),
-    };
-
-    Ok(fields.into_iter()
-        .filter(move |x| {
-            if let Some(filter_columns) = filter_columns {
-                filter_columns.contains(&x.name.as_ref())
-            } else {
-                true
-            }
-        })
-        .map(move |x| SheetColumn { name: x.name, column: columns[x.offset as usize].clone() }))
-}
-
-/// Gets a [`Vec`] of the field values and their field names
-/// from the given row in the given sheet.
-///
-/// Note that this function does not extract _all_ fields. Instead only
-/// the fields specified in `sheets.rs` are extracted.
-fn get_values(sheet: super::sheets::Sheet, row_id: u32, args: &mut Args<impl std::io::Write>) -> Result<KeyValues, Err> {
-    let sheet_name: &'static str = sheet.into();
-    let Init { excel, schema, sheet, version, .. } = Init::new(sheet_name, args)?;
-    // For some reason calling `sheet.row()` on the Action sheet
-    // takes longer than any other sheet by a magnitude of about 4x.
-    // Since this is a bug in the dependency, we can't fix it.
-    let row = sheet.row(row_id).map_err(|_| Err::RowNotFound(sheet_name, row_id))?;
-    let sheet_data = SHEET_COLUMNS.get(sheet_name);
-    let filtered_columns: Vec<SheetColumn> = filtered_column_iter(&sheet, schema, sheet_data.map(|x| x.columns))?.collect();
-
-    let mut result: KeyValues = filtered_columns.iter()
-        .map(|column| (Cow::Owned(column.name.to_owned()), row.field(&column.column).unwrap()))
-        .collect();
-
-    if let Some(data) = sheet_data {
-        for link in data.links {
-            if match link.condition {
-                LinkCondition::Always => false,
-                LinkCondition::Predicate(condition_col, predicate) => !predicate(result.iter().find(|x| x.0 == condition_col).to_unknown_err()?.1)
-            } {
-                continue;
-            }
-
-            let linked_sheet = excel.sheet(link.sheet).map_err(|_| Err::SheetNotFound(link.sheet))?;
-            let linked_row_id = if let LinkSource::Field(column_name) = link.source {
-                let value = &result.iter().find(|x| x.0 == column_name).ok_or(Err::ColumnNotFound(sheet_name, column_name))?.1;
-                get_u32(value).ok_or(Err::NoIndex(sheet_name, column_name))?
-            } else {
-                row_id
-            };
-
-            let linked_row = linked_sheet.row(linked_row_id).map_err(|_| Err::RowNotFound(link.sheet, linked_row_id))?;
-            let linked_schema = version.sheet(link.sheet).to_unknown_err()?;
-
-            for column in column_iter(&linked_sheet, linked_schema)? {
-                let link_data = link.columns.iter().find(|x| x.source == column.name);
-
-                if let Some(link_data) = link_data {
-                    result.insert(Cow::Borrowed(link_data.target), linked_row.field(&column.column).to_unknown_err()?);
-                }
-            }
-        }
-    }
-
-    Ok(result)
-}
-
-/// Prints the list of named values to [`stdout`] in JSON format.
-fn print_values(out: &mut impl std::io::Write, values: &KeyValues) -> Result<(), Err> {
-    write!(out, "{{").unwrap();
-    let len = values.len();
-
-    for (i, (key, field)) in values.iter().enumerate() {
-        write!(out, "\"{}{}\":", &key.chars().next().unwrap().to_lowercase(), &key[1..]).unwrap();
-        print_value(out, field);
-
-        if i < len - 1 {
-            write!(out, ",").unwrap();
-        }
-    }
-    writeln!(out, "}}").unwrap();
-
-    Ok(())
-}
-
-/// Prints the list of named values to [`stdout`] in JSON format.
-fn pretty_print_values(out: &mut impl std::io::Write, values: &KeyValues) -> Result<(), Err> {
-    writeln!(out, "{{").unwrap();
-    let len = values.len();
-
-    for (i, (key, value)) in values.iter().enumerate() {
-        write!(out, "  \"{}{}\": ", &key.chars().next().unwrap().to_lowercase(), &key[1..]).unwrap();
-        print_value(out, value);
-
-        if i < len - 1 {
-            writeln!(out, ",").unwrap();
-        }
-    }
-    writeln!(out, "\n}}").unwrap();
-
-    Ok(())
-}
-
-/// Prints the value contained in the field to [`stdout`].
-pub(crate) fn print_value(out: &mut impl std::io::Write, field: &Field) {
-    match field {
-        Field::String(s) => print_string(out, s),
-        Field::Bool(b) => write!(out, "{}", b),
-        Field::I8(num) => write!(out, "{}", num),
-        Field::I16(num) => write!(out, "{}", num),
-        Field::I32(num) => write!(out, "{}", num),
-        Field::I64(num) => write!(out, "{}", num),
-        Field::U8(num) => write!(out, "{}", num),
-        Field::U16(num) => write!(out, "{}", num),
-        Field::U32(num) => write!(out, "{}", num),
-        Field::U64(num) => write!(out, "{}", num),
-        Field::F32(num) => write!(out, "{}", num)
-    }.unwrap();
-}
-
-fn print_string(out: &mut impl std::io::Write, string: &SeString<'static>) -> std::io::Result<()> {
-    write!(out, "\"{}\"", string.to_string().replace('\n', "\\n").replace('"', "\\\""))
 }
 
 /// Attempts to convert the value contained in the field to [`u32`].

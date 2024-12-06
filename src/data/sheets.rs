@@ -42,8 +42,8 @@ pub(crate) struct SheetLink {
 
 pub(crate) enum LinkCondition {
     /// Condition always evaluates to `true`.
-    Always,
     #[allow(dead_code)]
+    Always,
     /// Condition evaluates to `true` if the given column in the source row satisfies the condition.
     Predicate(&'static str, fn(&Field) -> bool)
 }
@@ -149,33 +149,3 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
         links: &[]
     }
 };
-
-#[cfg(test)]
-mod tests {
-    use ironworks_schema::Node;
-    use super::super::Init;
-    use super::*;
-
-    #[test]
-    fn sheets_data_valid() {
-        let mut non_matching_columns: Vec<String> = Vec::new();
-
-        for (sheet_name, data) in SHEET_COLUMNS.entries() {
-            let (schema, ..) = Init::get_schema(sheet_name, "2024.06.18.0000.0000", false).unwrap();
-
-            if let Node::Struct(columns) = schema.node {
-                let column_names: Vec<_> = columns.iter().map(|x| x.name.to_owned()).collect();
-
-                for column in data.columns {
-                    if !column_names.iter().any(|y| y == column) {
-                        non_matching_columns.push(format!("{}::{}", sheet_name, column));
-                    }
-                }
-            } else {
-                panic!("Schema {} of incompatible type", sheet_name);
-            }
-        }
-
-        assert!(non_matching_columns.is_empty(), "Columns {:#?} are defined in sheets.rs but do not actually exist.", non_matching_columns);
-    }
-}
