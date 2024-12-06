@@ -30,7 +30,7 @@ impl IronworksBuilder {
     /// of the game directory on the user's file system itself. This will
     /// likely fail if the game is installed on a different drive, or if the CLI
     /// is executed in WSL.
-    pub fn game_path(&mut self, path: PathBuf) -> &mut Self {
+    pub fn game_path(mut self, path: PathBuf) -> Self {
         self.game_path = Some(path);
 
         self
@@ -41,7 +41,7 @@ impl IronworksBuilder {
     ///
     /// Default is `false`, in which case the locally cached schema is only updated when the
     /// upstream repository publishes a new version of the schema.
-    pub fn force_refresh(&mut self) -> &mut Self {
+    pub fn force_refresh(mut self) -> Self {
         self.should_refresh_schema = true;
 
         self

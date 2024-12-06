@@ -45,7 +45,7 @@ fn ironworks(game_path: &Option<ClioPath>) -> Result<IronworksCli, Err> {
     let mut builder = IronworksBuilder::new();
 
     if let Some(game_path) = game_path {
-        builder.game_path(game_path.to_path_buf());
+        builder = builder.game_path(game_path.to_path_buf());
     }
 
     builder.build()
