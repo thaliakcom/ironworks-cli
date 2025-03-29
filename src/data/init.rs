@@ -102,7 +102,7 @@ fn get_schema(version: &str, refresh: bool) -> Result<Version, Err> {
     }
 
     let provider = Provider::with().directory(repository_directory).build().to_unknown_err()?;
-    let specifier = provider.specifier("HEAD", version).to_unknown_err()?;
+    let specifier = provider.specifier_v2_ver(version).to_unknown_err()?;
     let version = provider.version(specifier).map_err(|_| Err::VersionNotFound(version.to_owned()))?;
 
     Ok(version)

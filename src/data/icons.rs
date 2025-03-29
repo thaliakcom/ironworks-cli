@@ -62,10 +62,12 @@ impl TextureDecompressor for Texture {
     
         match format {
             // Dxt1–3 (aka Bc1–3) are known image compression formats.
-            Format::Dxt1 => texpresso::Format::Bc1.decompress(data, width, height, output),
-            Format::Dxt3 => texpresso::Format::Bc3.decompress(data, width, height, output),
-            Format::Dxt5 => texpresso::Format::Bc5.decompress(data, width, height, output),
-            Format::Rgb5a1 => {
+            Format::Bc1Unorm => texpresso::Format::Bc1.decompress(data, width, height, output),
+            Format::Bc2Unorm => texpresso::Format::Bc2.decompress(data, width, height, output),
+            Format::Bc3Unorm => texpresso::Format::Bc3.decompress(data, width, height, output),
+            Format::Bc4Unorm => texpresso::Format::Bc4.decompress(data, width, height, output),
+            Format::Bc5Unorm => texpresso::Format::Bc5.decompress(data, width, height, output),
+            Format::Bgr5a1Unorm => {
                 // Image data is in R5G5B5A1 format (5 bits per RGB channel, 1 alpha bit,
                 // for a total of 16 bits per pixel).
                 // We iterate over each set of 2 array elements, combine those 2 array
@@ -90,7 +92,7 @@ impl TextureDecompressor for Texture {
                     output[i * 4 + 3] = (argb >> 24) as u8;
                 }
             },
-            Format::Rgba4 => {
+            Format::Bgra4Unorm => {
                 // Image data is in R4G4B4A4 format (i.e. 4 bits per RGBA channel
                 // for a total of 16 bits per pixel).
                 // We iterate over each set of 2 array elements, combine those 2 array
@@ -107,8 +109,8 @@ impl TextureDecompressor for Texture {
                 }
             },
             // Rgba8 is already in the right format, so we don't need to do anything.
-            Format::Rgba8 => output.copy_from_slice(data),
-            Format::Argb8 => {
+            Format::Rgba8Unknown => output.copy_from_slice(data),
+            Format::Bgra8Unorm => {
                 // Input has the right size, but it's in the wrong order, so
                 // we move the bits around.
 

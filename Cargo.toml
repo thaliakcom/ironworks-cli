@@ -1,15 +1,15 @@
 [package]
 name = "ironworks-cli"
 version = "0.5.1"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive", "cargo"] }
 clio = { version = "0.3.5", features = ["clap-parse"] }
-ironworks = { git = "https://github.com/ackwell/ironworks", features = ["excel", "sqpack", "tex"], rev = "7591e21" }
-ironworks_schema = { git = "https://github.com/ackwell/ironworks", features = ["exdschema"], rev = "7591e21" }
+ironworks = { git = "https://github.com/ackwell/ironworks.git", features = ["excel", "sqpack", "tex"], rev = "8bc9b81099041da79f4a0e98ab6ba9fe11432371" }
+ironworks_schema = { git = "https://github.com/ackwell/ironworks.git", features = ["exdschema"], rev = "8bc9b81099041da79f4a0e98ab6ba9fe11432371" }
 phf = { version = "0.11", default-features = false, features = ["macros"] }
 strum = "0.26"
 strum_macros = "0.26"
