@@ -15,6 +15,7 @@ pub enum Err {
     UnsupportedIconFormat(u32, String),
     UnsupportedSheet(Cow<'static, str>),
     IoError(io::Error),
+    SchemaError(ironworks_schema::Error),
     IconMissingOut,
     NoSubcommand,
     Unknown(u32, Option<Backtrace>)
@@ -37,6 +38,7 @@ impl Display for Err {
             Self::IconMissingOut => writeln!(f, "Icons require an output stream to write the image to"),
             Self::NoSubcommand => writeln!(f, "No subcommand was specified"),
             Self::IoError(err) => err.fmt(f),
+            Self::SchemaError(err) => err.fmt(f),
             Self::Unknown(code, trace) => if let Some(trace) = trace {
                 writeln!(f, "An unknown error (error code: {}) occurred at:\n{}", code, trace)
             } else {

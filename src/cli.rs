@@ -24,8 +24,8 @@ pub(crate) struct Cli {
     #[clap(global = true, long, short)]
     pub refresh: bool,
     /// Prints the version of the application and the game directory (if specified or found).
-    #[clap(global = true, long, short)]
-    pub version: bool
+    #[clap(global = true, long, short, num_args = 0..2, require_equals = true, default_missing_value = "", default_value = "Option::None")]
+    pub version: Option<String>
 }
 
 #[derive(Subcommand, Debug)]

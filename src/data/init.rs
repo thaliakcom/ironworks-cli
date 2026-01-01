@@ -13,7 +13,8 @@ use super::SheetColumn;
 #[derive(Debug, Clone, Default)]
 pub struct IronworksBuilder {
     game_path: Option<PathBuf>,
-    should_refresh_schema: bool
+    should_refresh_schema: bool,
+    requested_version: Option<String>
 }
 
 impl IronworksBuilder {
@@ -47,12 +48,21 @@ impl IronworksBuilder {
         self
     }
 
+    /// Forcibly refreshes the cached EXDSchema with the given EXDSChema version, even if the
+    /// upstream EXDSchema repository indicates that no new EXDSchema version has been published.
+    pub fn force_refresh_with_version(mut self, s: String) -> Self {
+        self.should_refresh_schema = true;
+        self.requested_version = Some(s);
+
+        self
+    }
+
     /// Builds an instance of the ironworks CLI.
     /// This function may be expensive to execute, as it will attempt to read
     /// or update the schema (if necessary) and find the FFXIV directory.
     pub fn build(self) -> Result<IronworksCli, Err> {
         let game_resource = get_game_resource(self.game_path.as_deref())?;
-        let version_string = game_resource.version(0).unwrap();
+        let version_string = self.requested_version.unwrap_or_else(|| game_resource.version(0).unwrap());
         let ironworks = Arc::new(Ironworks::new().with_resource(SqPack::new(game_resource)));
         let excel = Excel::new(ironworks).with_default_language(Language::English);
         let schema = get_schema(&version_string, self.should_refresh_schema)?;
@@ -101,8 +111,8 @@ fn get_schema(version: &str, refresh: bool) -> Result<Version, Err> {
         fs::remove_dir_all(&repository_directory).map_err(Err::IoError)?;
     }
 
-    let provider = Provider::with().directory(repository_directory).build().to_unknown_err(2)?;
-    let specifier = provider.specifier_v2_ver(version).to_unknown_err(3)?;
+    let provider = Provider::with().directory(repository_directory).build().map_err(Err::SchemaError)?;
+    let specifier = provider.specifier_v2_ver(version).map_err(Err::SchemaError)?;
     let version = provider.version(specifier).map_err(|_| Err::VersionNotFound(version.to_owned()))?;
 
     Ok(version)
