@@ -1,4 +1,4 @@
-use std::{backtrace::Backtrace, borrow::Cow, fmt::Display};
+use std::{backtrace::Backtrace, borrow::Cow, fmt::Display, io};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -14,9 +14,10 @@ pub enum Err {
     JobAcronymNotFound(String),
     UnsupportedIconFormat(u32, String),
     UnsupportedSheet(Cow<'static, str>),
+    IoError(io::Error),
     IconMissingOut,
     NoSubcommand,
-    Unknown(Option<Backtrace>)
+    Unknown(u32, Option<Backtrace>)
 }
 
 impl Display for Err {
@@ -35,27 +36,28 @@ impl Display for Err {
             Self::UnsupportedSheet(sheet) => writeln!(f, "Unsupported sheet type {}", sheet),
             Self::IconMissingOut => writeln!(f, "Icons require an output stream to write the image to"),
             Self::NoSubcommand => writeln!(f, "No subcommand was specified"),
-            Self::Unknown(trace) => if let Some(trace) = trace {
-                writeln!(f, "An unknown error occurred at:\n{}", trace)
+            Self::IoError(err) => err.fmt(f),
+            Self::Unknown(code, trace) => if let Some(trace) = trace {
+                writeln!(f, "An unknown error (error code: {}) occurred at:\n{}", code, trace)
             } else {
-                writeln!(f, "An unknown error occurred")
+                writeln!(f, "An unknown error (error code: {}) occurred", code)
             }
         }
     }
 }
 
 pub trait ToUnknownErr<T> {
-    fn to_unknown_err(self) -> Result<T, Err>;
+    fn to_unknown_err(self, error_code: u32) -> Result<T, Err>;
 }
 
 impl <T, E> ToUnknownErr<T> for Result<T, E> {
     /// Converts the [`Result<T, E>`] into a `Result<T, Err::Unknown>`.
-    fn to_unknown_err(self) -> Result<T, Err> {
+    fn to_unknown_err(self, error_code: u32) -> Result<T, Err> {
         self.map_err(|_| {
             if cfg!(debug_assertions) {
-                Err::Unknown(Some(Backtrace::force_capture()))
+                Err::Unknown(error_code, Some(Backtrace::force_capture()))
             } else {
-                Err::Unknown(None)
+                Err::Unknown(error_code, None)
             }
         })
     }
@@ -63,12 +65,12 @@ impl <T, E> ToUnknownErr<T> for Result<T, E> {
 
 impl <T> ToUnknownErr<T> for Option<T> {
     /// Converts the [`Option<T>`] into a `Result<T, Err::Unknown>`.
-    fn to_unknown_err(self) -> Result<T, Err> {
+    fn to_unknown_err(self, error_code: u32) -> Result<T, Err> {
         self.ok_or_else(|| {
             if cfg!(debug_assertions) {
-                Err::Unknown(Some(Backtrace::force_capture()))
+                Err::Unknown(error_code, Some(Backtrace::force_capture()))
             } else {
-                Err::Unknown(None)
+                Err::Unknown(error_code, None)
             }
         })
     }

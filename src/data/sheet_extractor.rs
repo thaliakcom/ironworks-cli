@@ -41,7 +41,7 @@ impl IronworksCli {
             for link in data.links {
                 if match link.condition {
                     LinkCondition::Always => false,
-                    LinkCondition::Predicate(condition_col, predicate) => !predicate(result.iter().find(|x| x.0 == condition_col).to_unknown_err()?.1)
+                    LinkCondition::Predicate(condition_col, predicate) => !predicate(result.iter().find(|x| x.0 == condition_col).to_unknown_err(21)?.1)
                 } {
                     continue;
                 }
@@ -60,7 +60,7 @@ impl IronworksCli {
                     let link_data = link.columns.iter().find(|x| x.source == column.name);
 
                     if let Some(link_data) = link_data {
-                        result.insert(Cow::Borrowed(link_data.target), linked_row.field(&column.column).to_unknown_err()?);
+                        result.insert(Cow::Borrowed(link_data.target), linked_row.field(&column.column).to_unknown_err(22)?);
                     }
                 }
             }
@@ -77,19 +77,19 @@ impl IronworksCli {
     pub fn search<'a>(&'a self, sheet: super::sheets::Sheet, search_str: &str) -> Result<SearchMatches<'a>, Err> {
         let sheet_name: &'static str = sheet.into();
         let sheet_info = self.get_sheet(sheet_name)?;
-        let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err()?;
+        let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err(23)?;
     
         let mut matches: SearchMatches<'a> = Vec::new();
         let filtered_columns: Vec<SheetColumn> = sheet_info.filtered_columns(sheet_data.columns)?.collect();
-        let name_column = filtered_columns.iter().find(|x| x.name == sheet_data.identifier).to_unknown_err()?;
+        let name_column = filtered_columns.iter().find(|x| x.name == sheet_data.identifier).to_unknown_err(24)?;
         let search_columns: Vec<_> = filtered_columns.iter().filter(|x| sheet_data.search_columns.contains(&x.name.as_ref())).collect();
     
         for row in sheet_info.sheet.into_iter() {
-            let name = row.field(&name_column.column).to_unknown_err()?.into_string().to_unknown_err()?;
+            let name = row.field(&name_column.column).to_unknown_err(26)?.into_string().to_unknown_err(25)?;
     
             for column in search_columns.iter() {
-                let field = row.field(&column.column).to_unknown_err()?;
-                let sestring = field.as_string().to_unknown_err()?;
+                let field = row.field(&column.column).to_unknown_err(27)?;
+                let sestring = field.as_string().to_unknown_err(28)?;
     
                 if sestring.to_string().to_lowercase().contains(&search_str.to_lowercase()) {
                     if column.name == name_column.name {

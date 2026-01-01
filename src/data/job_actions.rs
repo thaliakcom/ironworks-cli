@@ -56,16 +56,16 @@ impl IronworksCli {
         let (class_id, base_class_id) = self.get_class_id(class_id)?;
     
         let columns: Vec<SheetColumn> = sheet_info.filtered_columns(&[CLASS_JOB_SHEET_NAME, "Name"])?.collect();
-        let class_job_column = &columns.iter().find(|x| x.name == CLASS_JOB_SHEET_NAME).to_unknown_err()?.column;
-        let name_column = &columns.iter().find(|x| &x.name == "Name").to_unknown_err()?.column;
+        let class_job_column = &columns.iter().find(|x| x.name == CLASS_JOB_SHEET_NAME).to_unknown_err(7)?.column;
+        let name_column = &columns.iter().find(|x| &x.name == "Name").to_unknown_err(8)?.column;
     
         for row in sheet_info.sheet.into_iter() {
-            let class_job_id = row.field(class_job_column).to_unknown_err()?.into_i8().to_unknown_err()?;
+            let class_job_id = row.field(class_job_column).to_unknown_err(9)?.into_i8().to_unknown_err(10)?;
     
             if class_job_id == class_id as i8 || class_job_id == base_class_id as i8 {
                 matches.push(Action {
                     id: row.row_id(),
-                    name: row.field(name_column).unwrap().as_string().to_unknown_err()?.to_string()
+                    name: row.field(name_column).unwrap().as_string().to_unknown_err(11)?.to_string()
                 });
             }
         }
@@ -80,16 +80,16 @@ impl IronworksCli {
         let categories = role.get_class_categories();
     
         let columns: Vec<SheetColumn> = sheet_info.filtered_columns(&["ClassJobCategory", "Name"])?.collect();
-        let class_job_column = &columns.iter().find(|x| &x.name == "ClassJobCategory").to_unknown_err()?.column;
-        let name_column = &columns.iter().find(|x| &x.name == "Name").to_unknown_err()?.column;
+        let class_job_column = &columns.iter().find(|x| &x.name == "ClassJobCategory").to_unknown_err(12)?.column;
+        let name_column = &columns.iter().find(|x| &x.name == "Name").to_unknown_err(13)?.column;
     
         for row in sheet_info.sheet.into_iter() {
-            let class_job_id = row.field(class_job_column).to_unknown_err()?.into_u8().to_unknown_err()?;
+            let class_job_id = row.field(class_job_column).to_unknown_err(15)?.into_u8().to_unknown_err(14)?;
     
             if categories.contains(&class_job_id) {
                 matches.push(Action {
                     id: row.row_id(),
-                    name: row.field(name_column).unwrap().as_string().to_unknown_err()?.to_string()
+                    name: row.field(name_column).unwrap().as_string().to_unknown_err(16)?.to_string()
                 });
             }
         }
@@ -104,17 +104,17 @@ impl IronworksCli {
         let class_id = match id {
             Id::Index(id) => id,
             Id::Name(abbreviation) => {
-                let abbreviation_column = &columns.iter().find(|x| x.name == "Abbreviation").to_unknown_err()?.column;
+                let abbreviation_column = &columns.iter().find(|x| x.name == "Abbreviation").to_unknown_err(17)?.column;
                 self.sheet_iter(CLASS_JOB_SHEET_NAME)?
                     .find(|x| x.field(abbreviation_column).unwrap().into_string().unwrap().to_string() == abbreviation)
                     .ok_or_else(|| Err::JobAcronymNotFound(abbreviation.clone()))?.row_id()
             }
         };
     
-        let base_class_column = &columns.iter().find(|x| x.name == "ClassJobParent").to_unknown_err()?.column;
+        let base_class_column = &columns.iter().find(|x| x.name == "ClassJobParent").to_unknown_err(18)?.column;
         let class_job = sheet_info.sheet.row(class_id).map_err(|_| Err::JobNotFound(class_id))?;
     
-        Ok((class_id as u8, class_job.field(base_class_column).to_unknown_err()?.into_u8().to_unknown_err()?))
+        Ok((class_id as u8, class_job.field(base_class_column).to_unknown_err(19)?.into_u8().to_unknown_err(20)?))
     }
 }
 

@@ -37,7 +37,7 @@ fn write_png(file: &Texture, path: &str, out: &mut impl std::io::Write) -> Resul
     file.decompress(path, &mut output)?;
 
     let encoder = image::codecs::png::PngEncoder::new(out);
-    encoder.write_image(&output, width, height, image::ExtendedColorType::Rgba8).to_unknown_err()?;
+    encoder.write_image(&output, width, height, image::ExtendedColorType::Rgba8).to_unknown_err(4)?;
 
     Ok(())
 }
@@ -76,7 +76,7 @@ impl TextureDecompressor for Texture {
                 // them again to one u8 per color channel for the output array.
 
                 for (i, chunk) in data.chunks(2).enumerate() {
-                    let value = u16::from_le_bytes(chunk.try_into().to_unknown_err()?);
+                    let value = u16::from_le_bytes(chunk.try_into().to_unknown_err(5)?);
 
                     let a = (value & 0x8000) as u32;
                     let r = (value & 0x7C00) as u32;
@@ -100,7 +100,7 @@ impl TextureDecompressor for Texture {
                 // to each color channel accordingly and expand them into u8s.
 
                 for (i, chunk) in data.chunks(2).enumerate() {
-                    let value = u16::from_le_bytes(chunk.try_into().to_unknown_err()?);
+                    let value = u16::from_le_bytes(chunk.try_into().to_unknown_err(6)?);
 
                     output[i * 4]     = (((value >>  8) & 0x0F) << 4) as u8;
                     output[i * 4 + 1] = (((value >>  4) & 0x0F) << 4) as u8;

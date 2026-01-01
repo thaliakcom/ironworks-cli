@@ -95,14 +95,14 @@ impl IronworksCli {
 }
 
 fn get_schema(version: &str, refresh: bool) -> Result<Version, Err> {
-    let repository_directory = current_exe().ok().to_unknown_err()?.parent().to_unknown_err()?.join(format!("exdschema_{}", version));
+    let repository_directory = current_exe().map_err(Err::IoError)?.parent().to_unknown_err(1)?.join(format!("exdschema_{}", version));
 
     if refresh && repository_directory.exists() {
-        fs::remove_dir_all(&repository_directory).to_unknown_err()?;
+        fs::remove_dir_all(&repository_directory).map_err(Err::IoError)?;
     }
 
-    let provider = Provider::with().directory(repository_directory).build().to_unknown_err()?;
-    let specifier = provider.specifier_v2_ver(version).to_unknown_err()?;
+    let provider = Provider::with().directory(repository_directory).build().to_unknown_err(2)?;
+    let specifier = provider.specifier_v2_ver(version).to_unknown_err(3)?;
     let version = provider.version(specifier).map_err(|_| Err::VersionNotFound(version.to_owned()))?;
 
     Ok(version)

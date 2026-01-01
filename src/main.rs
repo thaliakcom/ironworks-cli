@@ -53,9 +53,9 @@ fn ironworks(game_path: &Option<ClioPath>) -> Result<IronworksCli, Err> {
 
 fn print(input: impl WritableResult, pretty: bool) -> Result<(), Err> {
     if pretty {
-        input.pretty_write(stdout()).to_unknown_err()
+        input.pretty_write(stdout()).to_unknown_err(29)
     } else {
-        input.write(stdout()).to_unknown_err()
+        input.write(stdout()).to_unknown_err(30)
     }
 }
 
