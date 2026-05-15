@@ -148,7 +148,7 @@ impl <'a> SheetInfo<'a> {
     
         match self.schema.order {
             Order::Index => (),
-            Order::Offset => columns.sort_by_key(|column| column.offset()),
+            Order::Offset => columns.sort_by_key(|column| column.offset),
         };
     
         Ok(fields.iter()

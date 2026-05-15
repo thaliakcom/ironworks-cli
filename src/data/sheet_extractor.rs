@@ -85,6 +85,7 @@ impl IronworksCli {
         let search_columns: Vec<_> = filtered_columns.iter().filter(|x| sheet_data.search_columns.contains(&x.name.as_ref())).collect();
     
         for row in sheet_info.sheet.into_iter() {
+            let row = row?;
             let name = row.field(&name_column.column).to_unknown_err(26)?.into_string().to_unknown_err(25)?;
     
             for column in search_columns.iter() {

@@ -60,6 +60,7 @@ impl IronworksCli {
         let name_column = &columns.iter().find(|x| &x.name == "Name").to_unknown_err(8)?.column;
     
         for row in sheet_info.sheet.into_iter() {
+            let row = row?;
             let class_job_id = row.field(class_job_column).to_unknown_err(9)?.into_i8().to_unknown_err(10)?;
     
             if class_job_id == class_id as i8 || class_job_id == base_class_id as i8 {
@@ -84,6 +85,7 @@ impl IronworksCli {
         let name_column = &columns.iter().find(|x| &x.name == "Name").to_unknown_err(13)?.column;
     
         for row in sheet_info.sheet.into_iter() {
+            let row = row?;
             let class_job_id = row.field(class_job_column).to_unknown_err(15)?.into_u8().to_unknown_err(14)?;
     
             if categories.contains(&class_job_id) {
@@ -106,8 +108,8 @@ impl IronworksCli {
             Id::Name(abbreviation) => {
                 let abbreviation_column = &columns.iter().find(|x| x.name == "Abbreviation").to_unknown_err(17)?.column;
                 self.sheet_iter(CLASS_JOB_SHEET_NAME)?
-                    .find(|x| x.field(abbreviation_column).unwrap().into_string().unwrap().to_string() == abbreviation)
-                    .ok_or_else(|| Err::JobAcronymNotFound(abbreviation.clone()))?.row_id()
+                    .find(|x| x.as_ref().unwrap().field(abbreviation_column).unwrap().into_string().unwrap().to_string() == abbreviation)
+                    .ok_or_else(|| Err::JobAcronymNotFound(abbreviation.clone()))??.row_id()
             }
         };
     

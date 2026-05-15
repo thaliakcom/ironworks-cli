@@ -18,6 +18,7 @@ pub enum Err {
     SchemaError(ironworks_schema::Error),
     IconMissingOut,
     NoSubcommand,
+    IronworksError(ironworks::Error),
     Unknown(u32, Option<Backtrace>)
 }
 
@@ -37,6 +38,7 @@ impl Display for Err {
             Self::UnsupportedSheet(sheet) => writeln!(f, "Unsupported sheet type {}", sheet),
             Self::IconMissingOut => writeln!(f, "Icons require an output stream to write the image to"),
             Self::NoSubcommand => writeln!(f, "No subcommand was specified"),
+            Self::IronworksError(err) => err.fmt(f),
             Self::IoError(err) => err.fmt(f),
             Self::SchemaError(err) => err.fmt(f),
             Self::Unknown(code, trace) => if let Some(trace) = trace {
@@ -45,6 +47,12 @@ impl Display for Err {
                 writeln!(f, "An unknown error (error code: {}) occurred", code)
             }
         }
+    }
+}
+
+impl From<ironworks::Error> for Err {
+    fn from(value: ironworks::Error) -> Self {
+        Err::IronworksError(value)
     }
 }
 
