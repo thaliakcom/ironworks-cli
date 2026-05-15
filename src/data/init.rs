@@ -139,7 +139,7 @@ impl <'a> SheetInfo<'a> {
     }
     
     pub(crate) fn filtered_columns(&self, filter_columns: &'a [&'a str]) -> Result<impl Iterator<Item = SheetColumn> + use<'_>, Err> {
-        self.filtered_columns_iter(Some(filter_columns))
+        self.filtered_columns_iter(if filter_columns.is_empty() { None } else { Some(filter_columns) })
     }
 
     fn filtered_columns_iter(&self, filter_columns: Option<&'a [&'a str]>) -> Result<impl Iterator<Item = SheetColumn>, Err> {
@@ -156,7 +156,7 @@ impl <'a> SheetInfo<'a> {
                 if let Some(filter_columns) = filter_columns {
                     filter_columns.contains(&x.name.as_ref())
                 } else {
-                    true
+                    !x.name.contains("Unknown")
                 }
             })
             .map(move |x| SheetColumn { name: x.name.clone(), column: columns[x.offset as usize].clone() }))

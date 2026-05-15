@@ -34,7 +34,9 @@ fn process(cli: Cli) -> Result<(), Err> {
         Command::RoleActions(RoleActionsCommandArgs { role, names, pretty }) => print(ironworks(&cli)?.get_role_actions(*role)?.writable(*names), *pretty),
         Command::ContentFinderCondition(SheetCommandArgs { id, pretty, descriptions }) => process_sheet_command(Sheet::ContentFinderCondition, id, &cli, *pretty, *descriptions),
         Command::Action(SheetCommandArgs { id, pretty, descriptions }) => process_sheet_command(Sheet::Action, id, &cli, *pretty, *descriptions),
-        Command::Status(SheetCommandArgs { id, pretty, descriptions }) => process_sheet_command(Sheet::Status, id, &cli, *pretty, *descriptions)
+        Command::Status(SheetCommandArgs { id, pretty, descriptions }) => process_sheet_command(Sheet::Status, id, &cli, *pretty, *descriptions),
+        Command::ClassJob(SheetCommandArgs { id, pretty, descriptions }) => process_sheet_command(Sheet::ClassJob, id, &cli, *pretty, *descriptions),
+        Command::ClassJobCategory(SheetCommandArgs { id, pretty, descriptions }) => process_sheet_command(Sheet::ClassJobCategory, id, &cli, *pretty, *descriptions)
     }
 }
 

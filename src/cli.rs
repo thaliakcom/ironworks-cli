@@ -37,6 +37,10 @@ pub(crate) enum Command {
     Action(SheetCommandArgs),
     /// Retrieves JSON information about a specific status effect.
     Status(SheetCommandArgs),
+    /// Retrieves JSON information about a specific class or job.
+    ClassJob(SheetCommandArgs),
+    /// Retrieves JSON information about a specific job category.
+    ClassJobCategory(SheetCommandArgs),
     /// Prints an array of the numerical IDs of all job actions for a specific class or job.
     #[clap(name = "job-actions")]
     JobActions(JobActionsCommandArgs),

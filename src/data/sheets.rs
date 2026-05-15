@@ -6,7 +6,9 @@ use strum::IntoStaticStr;
 pub enum Sheet {
     Action,
     Status,
-    ContentFinderCondition
+    ContentFinderCondition,
+    ClassJob,
+    ClassJobCategory
 }
 
 /// A source for a [`SheetLink`], i.e. the type of column in the source
@@ -52,7 +54,7 @@ pub(crate) enum LinkCondition {
 pub(crate) struct SheetData {
     /// Name of the column that contains an identifier for the column.
     pub identifier: &'static str,
-    /// Which columns to add to the output.
+    /// Which columns to add to the output. An empty array indicates that all columns should be used, except those with Unknown in their name.
     pub columns: &'static [&'static str],
     /// Whether data from another sheet should be added to the output.
     pub links: &'static [SheetLink]
@@ -134,6 +136,38 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "Image",
             "Icon"
         ],
+        links: &[]
+    },
+    "ClassJob" => SheetData {
+        identifier: "Name",
+        columns: &[
+            "Name",
+            "Abbreviation",
+            "ClassJobCategory",
+            "StartingLevel",
+            "PartyBonus",
+            "JobType",
+            "IsLimitedJob",
+            "CanQueueForDuty",
+            "ModifierHitPoints",
+            "ModifierManaPoints",
+            "ModifierStrength",
+            "ModifierVitality",
+            "ModifierDexterity",
+            "ModifierIntelligence",
+            "ModifierMind",
+            "ModifierPiety",
+            "ClassJobParent",
+            "PrimaryStat",
+            "LimitBreak1",
+            "LimitBreak2",
+            "LimitBreak3"
+        ],
+        links: &[]
+    },
+    "ClassJobCategory" => SheetData {
+        identifier: "Name",
+        columns: &[],
         links: &[]
     }
 };
