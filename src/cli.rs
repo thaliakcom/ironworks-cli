@@ -54,9 +54,12 @@ pub(crate) struct SheetCommandArgs {
     /// Can also be a string to search for an item by name.
     #[clap(value_parser = parse_id)]
     pub id: Id,
-    /// Whether to pretty-print the result.
+    /// When matching a numeric ID, whether to pretty-print the JSON result.
     #[clap(short, long)]
-    pub pretty: bool
+    pub pretty: bool,
+    /// When searching for a string ID, whether to show descriptions alongside the name.
+    #[clap(short, long)]
+    pub descriptions: bool
 }
 
 #[derive(Args, Debug)]

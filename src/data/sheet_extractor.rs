@@ -1,7 +1,8 @@
 use std::borrow::Cow;
-use ironworks::excel::Field;
+use ironworks::excel::{Field, Row};
 use ironworks::file::exh::ColumnDefinition;
 use ironworks::sestring::SeString;
+use crate::SheetData;
 use crate::err::{Err, ToUnknownErr};
 use super::sheets::{LinkCondition, LinkSource, SHEET_COLUMNS};
 use super::{IronworksCli, WritableResult};
@@ -9,7 +10,7 @@ use super::{IronworksCli, WritableResult};
 impl IronworksCli {
     /// Extracts a single row from the given sheet and prints a
     /// JSON representation of the result to the given output stream.
-    pub fn get(&self, sheet: super::sheets::Sheet, id: u32) -> Result<KeyValues, Err> {
+    pub fn get(&self, sheet: super::sheets::Sheet, id: u32) -> Result<KeyValues<'_>, Err> {
         self.get_values(sheet, id)
     }
 
@@ -18,7 +19,7 @@ impl IronworksCli {
     ///
     /// Note that this function does not extract _all_ fields. Instead only
     /// the fields specified in `sheets.rs` are extracted.
-    fn get_values(&self, sheet: super::sheets::Sheet, row_id: u32) -> Result<KeyValues, Err> {
+    fn get_values(&self, sheet: super::sheets::Sheet, row_id: u32) -> Result<KeyValues<'_>, Err> {
         let sheet_name: &'static str = sheet.into();
         let sheet_info = self.get_sheet(sheet_name)?;
         // For some reason calling `sheet.row()` on the Action sheet
@@ -37,31 +38,8 @@ impl IronworksCli {
             .collect();
 
         if let Some(data) = sheet_data {
-            for link in data.links {
-                if match link.condition {
-                    LinkCondition::Always => false,
-                    LinkCondition::Predicate(condition_col, predicate) => !predicate(&result.iter().find(|x| x.0 == condition_col).to_unknown_err(21)?.1)
-                } {
-                    continue;
-                }
-
-                let linked_sheet_info = self.get_sheet(link.sheet)?;
-                let linked_row_id = if let LinkSource::Field(column_name) = link.source {
-                    let value = &result.iter().find(|x| x.0 == column_name).ok_or(Err::ColumnNotFound(sheet_name, column_name))?.1;
-                    get_u32(value).ok_or(Err::NoIndex(sheet_name, column_name))?
-                } else {
-                    row_id
-                };
-
-                let linked_row = linked_sheet_info.sheet.row(linked_row_id).map_err(|_| Err::RowNotFound(link.sheet, linked_row_id))?;
-
-                for column in linked_sheet_info.columns()? {
-                    let link_data = link.columns.iter().find(|x| x.source == column.name);
-
-                    if let Some(link_data) = link_data {
-                        result.push((Cow::Borrowed(link_data.target), linked_row.field(&column.column).to_unknown_err(22)?));
-                    }
-                }
+            for (field_name, field) in self.linked_fields_iter(data, &row, &filtered_columns) {
+                result.push((Cow::Owned(field_name), field));
             }
         }
 
@@ -72,12 +50,44 @@ impl IronworksCli {
         Ok(result)
     }
 
+    fn linked_fields_iter(&self, data: &SheetData, row: &Row, columns: &[SheetColumn]) -> impl Iterator<Item = (String, Field)> {
+        data.links.iter().filter_map(|link| {
+            if match link.condition {
+                LinkCondition::Always => false,
+                LinkCondition::Predicate(condition_col, predicate) => !predicate(&row.field(&columns.iter().find(|x| x.name == condition_col).to_unknown_err(21).ok()?.column).ok()?)
+            } {
+                return None;
+            }
+
+            let linked_sheet_info = self.get_sheet(link.sheet).ok()?;
+            let linked_row_id = if let LinkSource::Field(column_name) = link.source {
+                let column_definition = &columns.iter().find(|x| x.name == column_name).ok_or(Err::ColumnNotFound(data.identifier, column_name)).ok()?.column;
+                let value = &row.field(column_definition).ok()?;
+                get_u32(value).ok_or(Err::NoIndex(data.identifier, column_name)).ok()?
+            } else {
+                row.row_id()
+            };
+
+            let linked_row = linked_sheet_info.sheet.row(linked_row_id).map_err(|_| Err::RowNotFound(link.sheet, linked_row_id)).ok()?;
+
+            Some(linked_sheet_info.columns().ok()?.filter_map(|column| {
+                let link_data = link.columns.iter().find(|x| x.source == column.name);
+
+                if let Some(link_data) = link_data {
+                    return Some((link_data.target.to_owned(), linked_row.field(&column.column).to_unknown_err(22).ok()?));
+                }
+
+                None
+            }).collect::<Vec<_>>())
+        }).flatten()
+    }
+
     /// Searches for a given string in the given sheet and prints a list of all matching row IDs
     /// to [`stdout`].
     ///
     /// Note that this function does not search through _all_ columns; instead
     /// only the columns specified in `sheets.rs` are searched.
-    pub fn search<'a>(&'a self, sheet: super::sheets::Sheet, search_str: &str) -> Result<SearchMatches<'a>, Err> {
+    pub fn search<'a>(&'a self, sheet: super::sheets::Sheet, search_str: &str, descriptions: bool) -> Result<SearchMatches<'a>, Err> {
         let sheet_name: &'static str = sheet.into();
         let sheet_info = self.get_sheet(sheet_name)?;
         let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err(23)?;
@@ -85,26 +95,32 @@ impl IronworksCli {
         let mut matches: SearchMatches<'a> = Vec::new();
         let filtered_columns: Vec<SheetColumn> = sheet_info.filtered_columns(sheet_data.columns)?.collect();
         let name_column = filtered_columns.iter().find(|x| x.name == sheet_data.identifier).to_unknown_err(24)?;
-        let search_columns: Vec<_> = filtered_columns.iter().filter(|x| sheet_data.search_columns.contains(&x.name.as_ref())).collect();
-    
-        for row in sheet_info.sheet.into_iter() {
+        let description_column = filtered_columns.iter().find(|x| x.name == "Description");
+
+        'outer: for row in sheet_info.sheet.into_iter() {
             let row = row?;
             let name = row.field(&name_column.column).to_unknown_err(26)?.into_string().to_unknown_err(25)?;
-    
-            for column in search_columns.iter() {
-                let field = row.field(&column.column).to_unknown_err(27)?;
-                let sestring = field.as_string().to_unknown_err(28)?;
-    
-                if sestring.to_string().to_lowercase().contains(&search_str.to_lowercase()) {
-                    if column.name == name_column.name {
-                        matches.push(SearchMatch { id: row.row_id(), name, field: None });
-                    } else {
-                        matches.push(SearchMatch { id: row.row_id(), name, field: Some(KeyValue { key: Cow::Owned(column.name.clone()), value: field }) });
+            
+            if !name.to_string().to_lowercase().contains(&search_str.to_lowercase()) {
+                continue;
+            }
+
+            if descriptions {
+                if let Some(description_column) = description_column {
+                    let description = row.field(&description_column.column).to_unknown_err(27)?;
+                    matches.push(SearchMatch { id: row.row_id(), name, field: Some(KeyValue { key: Cow::Owned(description_column.name.clone()), value: description }) });
+                    continue;
+                }
+
+                for (field_name, field) in self.linked_fields_iter(sheet_data, &row, &filtered_columns) {
+                    if field_name == "Description" {
+                        matches.push(SearchMatch { id: row.row_id(), name, field: Some(KeyValue { key: Cow::Owned(field_name), value: field }) });
+                        continue 'outer;
                     }
-    
-                    break;
                 }
             }
+
+            matches.push(SearchMatch { id: row.row_id(), name, field: None });
         }
     
         Ok(matches)
@@ -168,8 +184,8 @@ pub struct SearchMatch<'a> {
     pub id: u32,
     /// The name of the entity as retrieved from its "name" column.
     pub name: SeString<'a>,
-    /// A key-value pair of the column that matched the search query.
-    /// This will be [`None`] if only the row's name matched.
+    /// A key-value pair of a related column that should be printed
+    /// alongside the name.
     pub field: Option<KeyValue<'a>>
 }
 
@@ -205,6 +221,7 @@ impl <'a> WritableResult for SearchMatches<'a> {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct SheetColumn {
     pub name: String,
     pub column: ColumnDefinition

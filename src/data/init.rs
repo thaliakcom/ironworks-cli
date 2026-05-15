@@ -142,7 +142,7 @@ impl <'a> SheetInfo<'a> {
         self.filtered_columns_iter(Some(filter_columns))
     }
 
-    fn filtered_columns_iter(&self, filter_columns: Option<&'a [&'a str]>) -> Result<impl Iterator<Item = SheetColumn> + use<'_>, Err> {
+    fn filtered_columns_iter(&self, filter_columns: Option<&'a [&'a str]>) -> Result<impl Iterator<Item = SheetColumn>, Err> {
         let mut columns = self.sheet.columns().map_err(|_| Err::UnsupportedSheet(Cow::Owned(self.sheet.name())))?;
         let fields = if let Node::Struct(columns) = &self.schema.node { columns } else { Err(Err::UnsupportedSheet(Cow::Owned(self.sheet.name())))? };
     
@@ -151,7 +151,7 @@ impl <'a> SheetInfo<'a> {
             Order::Offset => columns.sort_by_key(|column| column.offset),
         };
     
-        Ok(fields.iter()
+        Ok(fields.into_iter()
             .filter(move |x| {
                 if let Some(filter_columns) = filter_columns {
                     filter_columns.contains(&x.name.as_ref())

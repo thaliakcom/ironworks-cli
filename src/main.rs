@@ -32,9 +32,9 @@ fn process(cli: Cli) -> Result<(), Err> {
         Command::Icon(IconArgs { id }) => ironworks_cli::extract_icon(*id, cli.game.as_deref(), stdout()),
         Command::JobActions(JobActionsCommandArgs { base, names }) => print(ironworks(&cli)?.get_job_actions(base.id.clone())?.writable(*names), base.pretty),
         Command::RoleActions(RoleActionsCommandArgs { role, names, pretty }) => print(ironworks(&cli)?.get_role_actions(*role)?.writable(*names), *pretty),
-        Command::ContentFinderCondition(SheetCommandArgs { id, pretty }) => process_sheet_command(Sheet::ContentFinderCondition, id, &cli, *pretty),
-        Command::Action(SheetCommandArgs { id, pretty }) => process_sheet_command(Sheet::Action, id, &cli, *pretty),
-        Command::Status(SheetCommandArgs { id, pretty }) => process_sheet_command(Sheet::Status, id, &cli, *pretty)
+        Command::ContentFinderCondition(SheetCommandArgs { id, pretty, descriptions }) => process_sheet_command(Sheet::ContentFinderCondition, id, &cli, *pretty, *descriptions),
+        Command::Action(SheetCommandArgs { id, pretty, descriptions }) => process_sheet_command(Sheet::Action, id, &cli, *pretty, *descriptions),
+        Command::Status(SheetCommandArgs { id, pretty, descriptions }) => process_sheet_command(Sheet::Status, id, &cli, *pretty, *descriptions)
     }
 }
 
@@ -66,11 +66,11 @@ fn print(input: impl WritableResult, pretty: bool) -> Result<(), Err> {
     }
 }
 
-fn process_sheet_command(sheet: Sheet, id: &Id, cli: &Cli, pretty: bool) -> Result<(), Err> {
+fn process_sheet_command(sheet: Sheet, id: &Id, cli: &Cli, pretty: bool, descriptions: bool) -> Result<(), Err> {
     let ironworks = ironworks(cli)?;
 
     match id {
-        Id::Name(name) => print(ironworks.search(sheet, name)?, pretty),
+        Id::Name(name) => print(ironworks.search(sheet, name, descriptions)?, pretty),
         Id::Index(index) => print(ironworks.get(sheet, *index)?, pretty),
     }
 }

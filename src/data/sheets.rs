@@ -55,9 +55,7 @@ pub(crate) struct SheetData {
     /// Which columns to add to the output.
     pub columns: &'static [&'static str],
     /// Whether data from another sheet should be added to the output.
-    pub links: &'static [SheetLink],
-    /// Which columns to search in.
-    pub search_columns: &'static [&'static str]
+    pub links: &'static [SheetLink]
 }
 
 pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
@@ -92,9 +90,6 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "CooldownGroup",
             "IsPlayerAction"
         ],
-        search_columns: &[
-            "Name"
-        ],
         links: &[
             SheetLink {
                 source: LinkSource::ID,
@@ -119,9 +114,6 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "InflictedByActor",
             "IsPermanent",
         ],
-        search_columns: &[
-            "Name"
-        ],
         links: &[]
     },
     "ContentFinderCondition" => SheetData {
@@ -141,10 +133,6 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "ContentType",
             "Image",
             "Icon"
-        ],
-        search_columns: &[
-            "Name",
-            "ShortCode"
         ],
         links: &[]
     }
