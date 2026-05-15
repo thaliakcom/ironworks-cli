@@ -133,13 +133,37 @@ impl IronworksCli {
 /// Internally it's simply a key value vector, similar to a JSON object.
 pub type KeyValues<'a> = Vec<(Cow<'a, str>, Field)>;
 
+fn write_uncapitalized<'a>(mut w: impl std::io::Write, text: &Cow<'a, str>) -> std::io::Result<()> {
+    if text.chars().take(2).all(|x| x.is_uppercase()) {
+        write!(w, "{}", text)?;
+        return Ok(());
+    }
+
+    let mut iterator = text.chars();
+    let first = iterator.next();
+
+    if let Some(first) = first {
+        write!(w, "{}", first.to_lowercase())?;
+
+        for char in iterator {
+            write!(w, "{}", char)?;
+        }
+
+        Ok(())
+    } else {
+        write!(w, "unknown")
+    }
+}
+
 impl <'a> WritableResult for KeyValues<'a> {
     fn write(&self, mut w: impl std::io::Write) -> std::io::Result<()> {
         write!(w, "{{")?;
         let len = self.len();
     
         for (i, (key, field)) in self.iter().enumerate() {
-            write!(w, "\"{}{}\":", &key.chars().next().unwrap().to_lowercase(), &key[1..])?;
+            write!(w, "\"")?;
+            write_uncapitalized(&mut w, &key)?;
+            write!(w, "\":")?;
             field.write(&mut w)?;
     
             if i < len - 1 {
@@ -156,7 +180,9 @@ impl <'a> WritableResult for KeyValues<'a> {
         let len = self.len();
     
         for (i, (key, value)) in self.iter().enumerate() {
-            write!(w, "  \"{}{}\": ", &key.chars().next().unwrap().to_lowercase(), &key[1..])?;
+            write!(w, "  \"")?;
+            write_uncapitalized(&mut w, &key)?;
+            write!(w, "\": ")?;
             value.pretty_write(&mut w)?;
     
             if i < len - 1 {
