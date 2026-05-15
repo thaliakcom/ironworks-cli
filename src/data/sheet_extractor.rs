@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use ironworks::excel::Field;
 use ironworks::file::exh::ColumnDefinition;
 use ironworks::sestring::SeString;
@@ -41,7 +40,7 @@ impl IronworksCli {
             for link in data.links {
                 if match link.condition {
                     LinkCondition::Always => false,
-                    LinkCondition::Predicate(condition_col, predicate) => !predicate(result.iter().find(|x| x.0 == condition_col).to_unknown_err(21)?.1)
+                    LinkCondition::Predicate(condition_col, predicate) => !predicate(&result.iter().find(|x| x.0 == condition_col).to_unknown_err(21)?.1)
                 } {
                     continue;
                 }
@@ -60,10 +59,14 @@ impl IronworksCli {
                     let link_data = link.columns.iter().find(|x| x.source == column.name);
 
                     if let Some(link_data) = link_data {
-                        result.insert(Cow::Borrowed(link_data.target), linked_row.field(&column.column).to_unknown_err(22)?);
+                        result.push((Cow::Borrowed(link_data.target), linked_row.field(&column.column).to_unknown_err(22)?));
                     }
                 }
             }
+        }
+
+        if let Some(sheet_data) = sheet_data {
+            result.sort_by(|(a, _), (b, _)| sheet_data.columns.iter().position(|x| x == a).cmp(&sheet_data.columns.iter().position(|x| x == b)));
         }
 
         Ok(result)
@@ -111,8 +114,8 @@ impl IronworksCli {
 /// The return type of the [`IronworksCli::extract`] function
 /// that can also be written to an [`std::io::Write`] stream.
 ///
-/// Internally it's simply a key value hash map, similar to a JSON object.
-pub type KeyValues<'a> = HashMap<Cow<'a, str>, Field>;
+/// Internally it's simply a key value vector, similar to a JSON object.
+pub type KeyValues<'a> = Vec<(Cow<'a, str>, Field)>;
 
 impl <'a> WritableResult for KeyValues<'a> {
     fn write(&self, mut w: impl std::io::Write) -> std::io::Result<()> {

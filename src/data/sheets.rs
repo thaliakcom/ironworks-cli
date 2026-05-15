@@ -65,10 +65,19 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
         identifier: "Name",
         columns: &[
             "Name",
+            "Description",
             "Icon",
             "ActionCategory",
+            "Cast100ms",
+            "Recast100ms",
+            "MaxCharges",
+            "Range",
+            "EffectRange",
+            "AttackType",
+            "Aspect",
             "ClassJob",
             "ClassJobLevel",
+            "ClassJobCategory",
             "IsRoleAction",
             "CanTargetSelf",
             "CanTargetParty",
@@ -78,17 +87,9 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "TargetArea",
             "CastType",
             "BehaviourType",
-            "Range",
-            "EffectRange",
             "ActionCombo",
             "PreservesCombo",
-            "Cast100ms",
-            "Recast100ms",
             "CooldownGroup",
-            "MaxCharges",
-            "AttackType",
-            "Aspect",
-            "ClassJobCategory",
             "IsPlayerAction"
         ],
         search_columns: &[
@@ -119,8 +120,7 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "IsPermanent",
         ],
         search_columns: &[
-            "Name",
-            "Description"
+            "Name"
         ],
         links: &[]
     },
