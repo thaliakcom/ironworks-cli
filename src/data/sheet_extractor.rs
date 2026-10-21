@@ -28,6 +28,7 @@ impl IronworksCli {
         // Since this is a bug in the dependency, we can't fix it.
         let row = sheet_info.sheet.row(row_id).map_err(|_| Err::RowNotFound(sheet_name, row_id))?;
         let sheet_data = SHEET_COLUMNS.get(sheet_name);
+        let all_columns: Vec<SheetColumn> = sheet_info.columns()?.collect();
         let filtered_columns: Vec<SheetColumn> = if let Some(sheet_data) = sheet_data {
             sheet_info.filtered_columns(sheet_data.columns)?.collect()
         }  else {
@@ -39,7 +40,7 @@ impl IronworksCli {
             .collect();
 
         if let Some(data) = sheet_data {
-            for (field_name, field) in self.linked_fields_iter(data, &row, &filtered_columns) {
+            for (field_name, field) in self.linked_fields_iter(data, &row, &all_columns) {
                 result.push((Cow::Owned(field_name), field));
             }
         }
