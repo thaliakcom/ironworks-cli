@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::cmp::Ordering;
 use ironworks::excel::{Field, Row};
 use ironworks::file::exh::ColumnDefinition;
 use ironworks::sestring::SeString;
@@ -44,7 +45,16 @@ impl IronworksCli {
         }
 
         if let Some(sheet_data) = sheet_data {
-            result.sort_by(|(a, _), (b, _)| sheet_data.columns.iter().position(|x| x == a).cmp(&sheet_data.columns.iter().position(|x| x == b)));
+            result.sort_by(|(a, _), (b, _)| {
+                let result_a = sheet_data.columns.iter().position(|x| x == a);
+                let result_b = sheet_data.columns.iter().position(|x| x == b);
+
+                if result_a.is_none() {
+                    return Ordering::Greater;
+                }
+
+                result_a.cmp(&result_b)
+            });
         }
 
         Ok(result)
