@@ -85,12 +85,17 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "CanTargetHostile",
             "CanTargetDead",
             "TargetArea",
+            "XAxisModifier",
             "CastType",
             "BehaviourType",
             "ActionCombo",
             "PreservesCombo",
             "CooldownGroup",
-            "IsPlayerAction"
+            "IsPlayerAction",
+            "ExtraCastTime100ms",
+            "AnimationStart",
+            "AnimationEnd",
+            "ActionTimelineHit"
         ],
         links: &[
             SheetLink {
@@ -98,6 +103,24 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
                 sheet: "ActionTransient",
                 columns: &[SheetLinkColumn { source: "Description", target: "Description" }],
                 condition: LinkCondition::Predicate("ClassJob", |x| *x.as_i8().unwrap() != -1)
+            },
+            SheetLink {
+                source: LinkSource::Field("Omen"),
+                sheet: "Omen",
+                columns: &[
+                    SheetLinkColumn { source: "Path", target: "OmenPath" },
+                    SheetLinkColumn { source: "Type", target: "OmenType" }
+                ],
+                condition: LinkCondition::Predicate("Omen", |x| *x.as_u16().unwrap() != 0)
+            },
+            SheetLink {
+                source: LinkSource::Field("OmenAlt"),
+                sheet: "Omen",
+                columns: &[
+                    SheetLinkColumn { source: "Path", target: "OmenAltPath" },
+                    SheetLinkColumn { source: "Type", target: "OmenAltType" }
+                ],
+                condition: LinkCondition::Predicate("OmenAlt", |x| *x.as_u16().unwrap() != 0)
             }
         ]
     },
