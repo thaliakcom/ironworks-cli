@@ -12,7 +12,7 @@ pub(crate) struct Cli {
     pub command: Option<Command>,
     /// Path to the game's directory.
     /// If not specified, attempts to find the game directory automatically.
-    #[clap(global = true, long, short, value_parser, default_value = "Option::None")]
+    #[clap(global = true, long, short, value_parser)]
     pub game: Option<ClioPath>,
     /// If set, the header data for the game files is forcibly updated from
     /// an upstream source. This requires an internet connection.
@@ -24,7 +24,7 @@ pub(crate) struct Cli {
     #[clap(global = true, long, short)]
     pub refresh: bool,
     /// Prints the version of the application and the game directory (if specified or found).
-    #[clap(global = true, long, short, num_args = 0..2, require_equals = true, default_missing_value = "", default_value = "Option::None")]
+    #[clap(global = true, long, short, num_args = 0..2, require_equals = true, default_missing_value = "")]
     pub version: Option<String>
 }
 
