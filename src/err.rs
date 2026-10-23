@@ -25,7 +25,7 @@ pub enum Err {
 impl Display for Err {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::GameNotFound => writeln!(f, "No game path found. You can specify the game path automatically by using the \"-d\" option."),
+            Self::GameNotFound => writeln!(f, "No game path found. You can specify the game path automatically by using the \"-g\" option."),
             Self::VersionNotFound(s) => writeln!(f, "No schema for game version {} found. You may need to wait for schemas to be updated", s),
             Self::SheetNotFound(s) => writeln!(f, "Sheet {} not found", s),
             Self::RowNotFound(sheet, row) => writeln!(f, "Sheet {} has no row {}", sheet, row),
