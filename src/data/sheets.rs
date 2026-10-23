@@ -167,6 +167,7 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "Name",
             "Abbreviation",
             "ClassJobCategory",
+            "Role",
             "StartingLevel",
             "PartyBonus",
             "JobType",
