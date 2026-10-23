@@ -8,7 +8,9 @@ pub enum Sheet {
     Status,
     ContentFinderCondition,
     ClassJob,
-    ClassJobCategory
+    ClassJobCategory,
+    BNpcBase,
+    ModelSkeleton
 }
 
 /// A source for a [`SheetLink`], i.e. the type of column in the source
@@ -44,7 +46,6 @@ pub(crate) struct SheetLink {
 
 pub(crate) enum LinkCondition {
     /// Condition always evaluates to `true`.
-    #[allow(dead_code)]
     Always,
     /// Condition evaluates to `true` if the given column in the source row satisfies the condition.
     Predicate(&'static str, fn(&Field) -> bool)
@@ -53,6 +54,7 @@ pub(crate) enum LinkCondition {
 /// Data for a sheet.
 pub(crate) struct SheetData {
     /// Name of the column that contains an identifier for the column.
+    /// Empty if the sheet has no name column and can therefore not be searched.
     pub identifier: &'static str,
     /// Which columns to add to the output. An empty array indicates that all columns should be used, except those with Unknown in their name.
     pub columns: &'static [&'static str],
@@ -192,6 +194,35 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
     "ClassJobCategory" => SheetData {
         identifier: "Name",
         columns: &[],
+        links: &[]
+    },
+    "BNpcBase" => SheetData {
+        identifier: "",
+        columns: &[
+            "Scale",
+            "ModelChara",
+            "IsOmnidirectional"
+        ],
+        links: &[
+            SheetLink {
+                source: LinkSource::Field("ModelChara"),
+                sheet: "ModelChara",
+                columns: &[
+                    SheetLinkColumn { source: "Radius", target: "ModelCharaRadius" },
+                    SheetLinkColumn { source: "Model", target: "ModelCharaModel" },
+                    SheetLinkColumn { source: "Type", target: "ModelCharaType" }
+                ],
+                condition: LinkCondition::Always
+            }
+        ]
+    },
+    "ModelSkeleton" => SheetData {
+        identifier: "",
+        columns: &[
+            "Radius",
+            "Height",
+            "VFXScale"
+        ],
         links: &[]
     }
 };

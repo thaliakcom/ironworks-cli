@@ -102,7 +102,11 @@ impl IronworksCli {
         let sheet_name: &'static str = sheet.into();
         let sheet_info = self.get_sheet(sheet_name)?;
         let sheet_data = SHEET_COLUMNS.get(sheet_name).to_unknown_err(23)?;
-    
+
+        if sheet_data.identifier.is_empty() {
+            return Err(Err::NotSearchable(sheet_name));
+        }
+
         let mut matches: SearchMatches<'a> = Vec::new();
         let filtered_columns: Vec<SheetColumn> = sheet_info.filtered_columns(sheet_data.columns)?.collect();
         let name_column = filtered_columns.iter().find(|x| x.name == sheet_data.identifier).to_unknown_err(24)?;

@@ -41,6 +41,13 @@ pub(crate) enum Command {
     ClassJob(SheetCommandArgs),
     /// Retrieves JSON information about a specific job category.
     ClassJobCategory(SheetCommandArgs),
+    /// Retrieves JSON information about a specific battle NPC base,
+    /// including the linked ModelChara's radius, model and type.
+    /// Only supports numeric IDs.
+    BNpcBase(SheetCommandArgs),
+    /// Retrieves JSON information about a specific model skeleton.
+    /// Only supports numeric IDs.
+    ModelSkeleton(SheetCommandArgs),
     /// Prints an array of the numerical IDs of all job actions for a specific class or job.
     #[clap(name = "job-actions")]
     JobActions(JobActionsCommandArgs),
