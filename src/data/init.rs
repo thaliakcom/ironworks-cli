@@ -1,5 +1,5 @@
-use std::{borrow::Cow, env::current_exe, fs, path::{Path, PathBuf}, sync::Arc};
-use ironworks::{excel::{Excel, Language, Sheet, SheetIterator}, sqpack::{Install, Resource, SqPack}, Ironworks};
+use std::{borrow::Cow, env::current_exe, fs, io::{Cursor, Read}, path::{Path, PathBuf}, sync::Arc};
+use ironworks::{excel::{Excel, Language, Sheet, SheetIterator}, sqpack::{Install, Location, Resource, SqPack}, Ironworks};
 use ironworks_schema::{exdschema::{Provider, Version}, Node, Order, Schema};
 use crate::err::{Err, ToUnknownErr};
 use super::SheetColumn;
@@ -118,7 +118,40 @@ fn get_schema(version: &str, refresh: bool) -> Result<Version, Err> {
     Ok(version)
 }
 
-pub(crate) fn get_game_resource(game_dir: Option<&Path>) -> Result<Install, Err> {
+/// Wraps [`Install`] so that each game file is read into memory in one go.
+///
+/// [`Install`] hands out a `BufReader` over the dat file, and ironworks seeks
+/// to every block header with `SeekFrom::Start`, which discards the buffer.
+/// That turns each 16-byte header into a full 8 KiB read, i.e. thousands of
+/// reads for large sheets like `Action` (very slow on WSL's `/mnt` drives).
+pub(crate) struct BufferedInstall(Install);
+
+impl Resource for BufferedInstall {
+    fn version(&self, repository: u8) -> Result<String, ironworks::Error> {
+        self.0.version(repository)
+    }
+
+    type Index = <Install as Resource>::Index;
+    fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index, ironworks::Error> {
+        self.0.index(repository, category, chunk)
+    }
+
+    type Index2 = <Install as Resource>::Index2;
+    fn index2(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index2, ironworks::Error> {
+        self.0.index2(repository, category, chunk)
+    }
+
+    type File = Cursor<Vec<u8>>;
+    fn file(&self, repository: u8, category: u8, location: Location) -> Result<Self::File, ironworks::Error> {
+        // The reader returned by Install is already limited to this file's range.
+        let mut buffer = Vec::new();
+        self.0.file(repository, category, location)?.read_to_end(&mut buffer)?;
+
+        Ok(Cursor::new(buffer))
+    }
+}
+
+pub(crate) fn get_game_resource(game_dir: Option<&Path>) -> Result<BufferedInstall, Err> {
     let game_resource = if let Some(game_dir) = game_dir {
         Some(Install::at(game_dir))
     } else {
@@ -130,7 +163,7 @@ pub(crate) fn get_game_resource(game_dir: Option<&Path>) -> Result<Install, Err>
     // actually points to the game.
     game_resource.version(0).map_err(|_| Err::GameNotFound)?;
 
-    Ok(game_resource)
+    Ok(BufferedInstall(game_resource))
 }
 
 impl <'a> SheetInfo<'a> {
