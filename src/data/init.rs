@@ -1,4 +1,4 @@
-use std::{borrow::Cow, env::current_exe, fs, io::{Cursor, Read}, path::{Path, PathBuf}, sync::Arc};
+use std::{borrow::Cow, env::current_exe, fs, io::{self, Cursor, Read}, path::{Path, PathBuf}, process, sync::Arc};
 use ironworks::{excel::{Excel, Language, Sheet, SheetIterator}, sqpack::{Install, Location, Resource, SqPack}, Ironworks};
 use ironworks_schema::{exdschema::{Provider, Version}, Node, Order, Schema};
 use crate::err::{Err, ToUnknownErr};
@@ -111,11 +111,80 @@ fn get_schema(version: &str, refresh: bool) -> Result<Version, Err> {
         fs::remove_dir_all(&repository_directory).map_err(Err::IoError)?;
     }
 
-    let provider = Provider::with().directory(repository_directory).build().map_err(Err::SchemaError)?;
-    let specifier = provider.specifier_v2_ver(version).map_err(Err::SchemaError)?;
-    let version = provider.version(specifier).map_err(|_| Err::VersionNotFound(version.to_owned()))?;
+    if !repository_directory.exists() {
+        clone_schema(&repository_directory)?;
+    }
 
-    Ok(version)
+    match open_schema(&repository_directory, version) {
+        Ok(schema) => Ok(schema),
+        // A broken cache (e.g. an empty repository left behind by an interrupted
+        // clone) would otherwise fail every future run, so it is cloned again once.
+        Err(_) => {
+            discard_schema(&repository_directory)?;
+            clone_schema(&repository_directory)?;
+            open_schema(&repository_directory, version)
+        }
+    }
+}
+
+/// Opens the cloned EXDSchema repository at `directory` and resolves the schema
+/// for the given game version (or the latest schema published before it).
+fn open_schema(directory: &Path, version: &str) -> Result<Version, Err> {
+    let provider = Provider::with().directory(directory).build().map_err(Err::SchemaError)?;
+    let specifier = provider.specifier_v2_ver(version).map_err(Err::SchemaError)?;
+
+    provider.version(specifier).map_err(|_| Err::VersionNotFound(version.to_owned()))
+}
+
+/// Clones the EXDSchema repository into `directory`.
+///
+/// The clone is made in a temporary sibling directory and only moved to `directory`
+/// once it is complete, so that concurrently running processes never see a partial
+/// clone. If another process moved its clone into place first, that one is kept.
+fn clone_schema(directory: &Path) -> Result<(), Err> {
+    let temp_directory = sibling_path(directory, "tmp");
+
+    if temp_directory.exists() {
+        fs::remove_dir_all(&temp_directory).map_err(Err::IoError)?;
+    }
+
+    if let Err(err) = Provider::with().directory(&temp_directory).build() {
+        let _ = fs::remove_dir_all(&temp_directory);
+        return Err(Err::SchemaError(err));
+    }
+
+    if let Err(err) = fs::rename(&temp_directory, directory) {
+        fs::remove_dir_all(&temp_directory).map_err(Err::IoError)?;
+
+        if !directory.exists() {
+            return Err(Err::IoError(err));
+        }
+    }
+
+    Ok(())
+}
+
+/// Removes the cached EXDSchema repository at `directory`.
+///
+/// The directory is first renamed so that concurrently running processes
+/// don't try to delete the same files.
+fn discard_schema(directory: &Path) -> Result<(), Err> {
+    let discarded_directory = sibling_path(directory, "old");
+
+    match fs::rename(directory, &discarded_directory) {
+        Ok(()) => fs::remove_dir_all(&discarded_directory).map_err(Err::IoError),
+        // Another process already discarded it.
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(Err::IoError(err)),
+    }
+}
+
+/// Returns a path next to `path` that is unique to this process.
+fn sibling_path(path: &Path, tag: &str) -> PathBuf {
+    let mut sibling = path.as_os_str().to_owned();
+    sibling.push(format!(".{}{}", tag, process::id()));
+
+    PathBuf::from(sibling)
 }
 
 /// Wraps [`Install`] so that each game file is read into memory in one go.
