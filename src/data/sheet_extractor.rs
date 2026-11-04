@@ -45,6 +45,13 @@ impl IronworksCli {
             }
         }
 
+        // The length of the animation that `AnimationEnd` plays, from its timeline file.
+        let animation_key = result.iter().find(|(key, _)| key == "AnimationEndKey").and_then(|(_, field)| field.as_string()).map(|key| key.to_string());
+
+        if let Some(duration) = animation_key.and_then(|key| super::timeline::timeline_duration(&self.ironworks, &key)) {
+            result.push((Cow::Borrowed("AnimationEndDuration"), Field::U16(duration)));
+        }
+
         if let Some(sheet_data) = sheet_data {
             result.sort_by(|(a, _), (b, _)| {
                 let result_a = sheet_data.columns.iter().position(|x| x == a);

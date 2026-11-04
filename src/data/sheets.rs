@@ -107,6 +107,18 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
                 condition: LinkCondition::Predicate("ClassJob", |x| *x.as_i8().unwrap() != -1)
             },
             SheetLink {
+                source: LinkSource::Field("AnimationEnd"),
+                sheet: "ActionTimeline",
+                columns: &[SheetLinkColumn { source: "Key", target: "AnimationEndKey" }],
+                condition: LinkCondition::Predicate("AnimationEnd", |x| x.as_u16().is_some_and(|v| *v != 0) || x.as_i16().is_some_and(|v| *v != 0))
+            },
+            SheetLink {
+                source: LinkSource::Field("ActionTimelineHit"),
+                sheet: "ActionTimeline",
+                columns: &[SheetLinkColumn { source: "Key", target: "ActionTimelineHitKey" }],
+                condition: LinkCondition::Predicate("ActionTimelineHit", |x| x.as_u16().is_some_and(|v| *v != 0) || x.as_i16().is_some_and(|v| *v != 0))
+            },
+            SheetLink {
                 source: LinkSource::Field("Omen"),
                 sheet: "Omen",
                 columns: &[

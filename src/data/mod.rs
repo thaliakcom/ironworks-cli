@@ -4,6 +4,7 @@ mod job_actions;
 mod role_actions;
 mod sheet_extractor;
 mod sheets;
+mod timeline;
 
 pub use init::*;
 pub use icons::extract as extract_icon;

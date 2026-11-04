@@ -64,10 +64,10 @@ impl IronworksBuilder {
         let game_resource = get_game_resource(self.game_path.as_deref())?;
         let version_string = self.requested_version.unwrap_or_else(|| game_resource.version(0).unwrap());
         let ironworks = Arc::new(Ironworks::new().with_resource(SqPack::new(game_resource)));
-        let excel = Excel::new(ironworks).with_default_language(Language::English);
+        let excel = Excel::new(ironworks.clone()).with_default_language(Language::English);
         let schema = get_schema(&version_string, self.should_refresh_schema)?;
 
-        Ok(IronworksCli { excel, schema, version: version_string })
+        Ok(IronworksCli { ironworks, excel, schema, version: version_string })
     }
 }
 
@@ -81,6 +81,8 @@ pub(crate) struct SheetInfo<'a> {
 /// Use [`IronworksBuilder`] to create an instance of this type.
 #[derive(Debug)]
 pub struct IronworksCli {
+    /// The game files, for files other than Excel sheets.
+    pub(crate) ironworks: Arc<Ironworks>,
     excel: Excel,
     schema: Version,
     version: String
