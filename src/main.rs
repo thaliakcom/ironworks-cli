@@ -88,6 +88,8 @@ fn print_version(cli: &Cli) {
 
     match ironworks {
         Ok(ironworks) => println!("Final Fantasy XIV v{}", ironworks.version()),
+        // Without -g, the game version is only shown if the game is found; not finding it isn't an error.
+        Result::Err(Err::GameNotFound) if cli.game.is_none() => (),
         Result::Err(err) => eprintln!("Failed to find FFXIV version (error: \"{}\")", err),
     }
 }
