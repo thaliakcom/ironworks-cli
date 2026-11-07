@@ -48,6 +48,12 @@ pub(crate) enum Command {
     /// Retrieves JSON information about a specific model skeleton.
     /// Only supports numeric IDs.
     ModelSkeleton(SheetCommandArgs),
+    /// Retrieves JSON information about a specific headmarker (its icon name).
+    /// Only supports numeric IDs.
+    Lockon(SheetCommandArgs),
+    /// Retrieves JSON information about a specific tether (its file name).
+    /// Only supports numeric IDs.
+    Channeling(SheetCommandArgs),
     /// Prints an array of the numerical IDs of all job actions for a specific class or job.
     #[clap(name = "job-actions")]
     JobActions(JobActionsCommandArgs),

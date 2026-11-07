@@ -10,7 +10,9 @@ pub enum Sheet {
     ClassJob,
     ClassJobCategory,
     BNpcBase,
-    ModelSkeleton
+    ModelSkeleton,
+    Lockon,
+    Channeling
 }
 
 /// A source for a [`SheetLink`], i.e. the type of column in the source
@@ -234,6 +236,20 @@ pub(crate) static SHEET_COLUMNS: phf::Map<&'static str, SheetData> = phf_map! {
             "Radius",
             "Height",
             "VFXScale"
+        ],
+        links: &[]
+    },
+    "Lockon" => SheetData {
+        identifier: "",
+        columns: &[
+            "IconName"
+        ],
+        links: &[]
+    },
+    "Channeling" => SheetData {
+        identifier: "",
+        columns: &[
+            "File"
         ],
         links: &[]
     }
