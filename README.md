@@ -17,3 +17,10 @@ git clone git@github.com:thaliakcom/ironworks-cli.git
 cd ironworks-cli
 cargo install --path ./
 ```
+
+## Schema versions
+
+Every row's JSON starts with `schemaVersion`, the version of that sheet's output it was written with.
+`ironworks-cli --schema-version` prints the current version of every sheet, e.g. `{"Action":8,"Status":3,...}`,
+without needing a game path. Consumers that cache rows refetch those whose `schemaVersion` is missing or older
+than the current one.

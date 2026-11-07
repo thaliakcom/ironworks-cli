@@ -23,6 +23,11 @@ fn main() -> ExitCode {
 }
 
 fn process(cli: Cli) -> Result<(), Err> {
+    if cli.schema_version {
+        print_schema_versions();
+        return Ok(());
+    }
+
     if cli.version.as_ref().is_some_and(|x| x.is_empty()) {
         print_version(&cli);
         return Ok(());
@@ -79,6 +84,13 @@ fn process_sheet_command(sheet: Sheet, id: &Id, cli: &Cli, pretty: bool, descrip
         Id::Name(name) => print(ironworks.search(sheet, name, descriptions)?, pretty),
         Id::Index(index) => print(ironworks.get(sheet, *index)?, pretty),
     }
+}
+
+/// Prints every sheet's schema version as a compact JSON object on one line.
+fn print_schema_versions() {
+    let entries: Vec<String> = ironworks_cli::schema_versions().iter().map(|(name, version)| format!("\"{}\":{}", name, version)).collect();
+
+    println!("{{{}}}", entries.join(","));
 }
 
 fn print_version(cli: &Cli) {

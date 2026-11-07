@@ -1,0 +1,38 @@
+{
+  "Action": {
+    "keys": "identifier: Name; columns: Name, Description, Icon, ActionCategory, Cast100ms, Recast100ms, MaxCharges, Range, EffectRange, AttackType, Aspect, ClassJob, ClassJobLevel, ClassJobCategory, IsRoleAction, CanTargetSelf, CanTargetParty, CanTargetFriendly, CanTargetHostile, CanTargetDead, TargetArea, XAxisModifier, CastType, BehaviourType, ActionCombo, PreservesCombo, CooldownGroup, IsPlayerAction, ExtraCastTime100ms, AnimationStart, AnimationEnd, ActionTimelineHit; links: ID ActionTransient: Description -> Description; Field(AnimationEnd) ActionTimeline: Key -> AnimationEndKey; Field(ActionTimelineHit) ActionTimeline: Key -> ActionTimelineHitKey; Field(Omen) Omen: Path -> OmenPath, Type -> OmenType; Field(OmenAlt) Omen: Path -> OmenAltPath, Type -> OmenAltType",
+    "version": 8
+  },
+  "BNpcBase": {
+    "keys": "identifier: ; columns: Scale, ModelChara, IsOmnidirectional; links: Field(ModelChara) ModelChara: Radius -> ModelCharaRadius, Model -> ModelCharaModel, Type -> ModelCharaType",
+    "version": 1
+  },
+  "Channeling": {
+    "keys": "identifier: ; columns: File; links: ",
+    "version": 1
+  },
+  "ClassJob": {
+    "keys": "identifier: Name; columns: Name, Abbreviation, ClassJobCategory, Role, StartingLevel, PartyBonus, JobType, IsLimitedJob, CanQueueForDuty, ModifierHitPoints, ModifierManaPoints, ModifierStrength, ModifierVitality, ModifierDexterity, ModifierIntelligence, ModifierMind, ModifierPiety, ClassJobParent, PrimaryStat, LimitBreak1, LimitBreak2, LimitBreak3; links: ",
+    "version": 2
+  },
+  "ClassJobCategory": {
+    "keys": "identifier: Name; columns: ; links: ",
+    "version": 1
+  },
+  "ContentFinderCondition": {
+    "keys": "identifier: Name; columns: Name, NameShort, TerritoryType, ClassJobLevelRequired, ClassJobLevelSync, ItemLevelRequired, ItemLevelSync, AllowUndersized, AllowExplorerMode, HighEndDuty, ShortCode, ContentType, Image, Icon; links: ",
+    "version": 3
+  },
+  "Lockon": {
+    "keys": "identifier: ; columns: IconName; links: ",
+    "version": 1
+  },
+  "ModelSkeleton": {
+    "keys": "identifier: ; columns: Radius, Height, VFXScale; links: ",
+    "version": 1
+  },
+  "Status": {
+    "keys": "identifier: Name; columns: Name, Description, Icon, MaxStacks, StatusCategory, HitEffect, Transfiguration, IsGaze, CanDispel, InflictedByActor, IsPermanent; links: ",
+    "version": 3
+  }
+}

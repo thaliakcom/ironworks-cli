@@ -65,6 +65,9 @@ impl IronworksCli {
             });
         }
 
+        // Always first, so that consumers can tell which output version a cached row is from.
+        result.insert(0, (Cow::Borrowed("SchemaVersion"), Field::U16(sheet.schema_version())));
+
         Ok(result)
     }
 

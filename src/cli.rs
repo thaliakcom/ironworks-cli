@@ -25,7 +25,11 @@ pub(crate) struct Cli {
     pub refresh: bool,
     /// Prints the version of the application and the game directory (if specified or found).
     #[clap(global = true, long, short, num_args = 0..2, require_equals = true, default_missing_value = "")]
-    pub version: Option<String>
+    pub version: Option<String>,
+    /// Prints the schema version of every sheet's JSON output as a JSON object, e.g. {"Action":9,...}.
+    /// Each row's JSON starts with the `schemaVersion` it was written with. Needs no game path.
+    #[clap(long)]
+    pub schema_version: bool
 }
 
 #[derive(Subcommand, Debug)]
